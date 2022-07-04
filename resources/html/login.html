@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if error %}
+<div class="notification is-danger">{{error}}</div>
+{% endif %}
+
+<h1>Login</h1>
+
+<form method="post">
+    {% csrf-field %}
+    <input type="text" placeholder="Email:" name="email" />
+    <input type="password" placeholder="Password:" name="password" />
+    <input type="submit" value="Submit" />
+</form>
+{% endblock %}

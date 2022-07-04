@@ -13,6 +13,7 @@
                  [cprop "0.1.19"]
                  [expound "0.9.0"]
                  [funcool/struct "1.4.0"]
+                 [jdbc-ring-session "1.5.0"]
                  [json-html "0.4.7"]
                  [luminus-migrations "0.7.2"]
                  [luminus-transit "0.1.5"]

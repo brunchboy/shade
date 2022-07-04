@@ -1,13 +1,12 @@
 (ns shade.handler
-  (:require
-    [shade.middleware :as middleware]
-    [shade.layout :refer [error-page]]
-    [shade.routes.home :refer [home-routes]]
-    [reitit.ring :as ring]
-    [ring.middleware.content-type :refer [wrap-content-type]]
-    [ring.middleware.webjars :refer [wrap-webjars]]
-    [shade.env :refer [defaults]]
-    [mount.core :as mount]))
+  (:require [shade.middleware :as middleware]
+            [shade.layout :refer [error-page]]
+            [shade.routes.home :refer [home-routes]]
+            [reitit.ring :as ring]
+            [ring.middleware.content-type :refer [wrap-content-type]]
+            [ring.middleware.webjars :refer [wrap-webjars]]
+            [shade.env :refer [defaults]]
+            [mount.core :as mount]))
 
 (mount/defstate init-app
   :start ((or (:init defaults) (fn [])))

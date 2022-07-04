@@ -1,6 +1,5 @@
 (ns shade.core
-  (:require [shade.db.core :as db]
-            [shade.handler :as handler]
+  (:require [shade.handler :as handler]
             [shade.nrepl :as nrepl]
             [luminus.http-server :as http]
             [luminus-migrations.core :as migrations]

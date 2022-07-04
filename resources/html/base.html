@@ -27,6 +27,7 @@
                   <div class="navbar-start">
                       <a href="/" class="navbar-item{% ifequal page "home.html" %} is-active{%endifequal%}">Home</a>
                       <a href="/about" class="navbar-item{% ifequal page "about.html" %} is-active{%endifequal%}">About</a>
+                      {% ifunequal page "login.html" %}<a href="/logout" class="navbar-item">Logout</a>{%endifunequal%}
                   </div>
               </div>
           </div>
@@ -51,7 +52,7 @@
       })();
     </script>
 
-    
+
     {% block page-scripts %}
     {% endblock %}
   </body>

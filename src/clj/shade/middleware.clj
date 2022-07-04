@@ -7,12 +7,15 @@
     [shade.middleware.formats :as formats]
     [muuntaja.middleware :refer [wrap-format wrap-params]]
     [shade.config :refer [env]]
+    [shade.db.core :as db]
     [ring.middleware.flash :refer [wrap-flash]]
     [ring.adapter.undertow.middleware.session :refer [wrap-session]]
     [ring.middleware.defaults :refer [site-defaults wrap-defaults]]
+    [ring.util.response :refer [redirect]]
+    [jdbc-ring-session.core :refer [jdbc-store]]
     [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
-            [buddy.auth.accessrules :refer [restrict]]
-            [buddy.auth :refer [authenticated?]]
+    [buddy.auth.accessrules :refer [wrap-access-rules]]
+    [buddy.auth :refer [authenticated?]]
     [buddy.auth.backends.session :refer [session-backend]])
   )
 
@@ -22,8 +25,8 @@
       (handler req)
       (catch Throwable t
         (log/error t (.getMessage t))
-        (error-page {:status 500
-                     :title "Something very bad has happened!"
+        (error-page {:status  500
+                     :title   "Something very bad has happened!"
                      :message "We've dispatched a team of highly trained gnomes to take care of the problem."})))))
 
 (defn wrap-csrf [handler]
@@ -31,8 +34,8 @@
     handler
     {:error-response
      (error-page
-       {:status 403
-        :title "Invalid anti-forgery token"})}))
+      {:status 403
+       :title  "Invalid anti-forgery token"})}))
 
 
 (defn wrap-formats [handler]
@@ -42,18 +45,28 @@
       ;; since they're not compatible with this middleware
       ((if (:websocket? request) handler wrapped) request))))
 
-(defn on-error [request response]
-  (error-page
-    {:status 403
-     :title (str "Access to " (:uri request) " is not authorized")}))
+(defn on-error
+  "Authorization failure handler for protected pages."
+  [request _response]
+  (if (authenticated? request)
+    ;; If the request was authenticated, raise a 403, because the user is logged in but they do not
+    ;; have permission to access this specific route.
+    (error-page
+     {:status 403
+      :title  (str "Access to " (:uri request) " is not authorized")})
+    ;; Otherwise, they are not logged in, so simply redirect them to the login page.
+    (let [current-url (:uri request)]
+      (redirect (format "/login?next=%s" current-url)))))
 
-(defn wrap-restricted [handler]
-  (restrict handler {:handler authenticated?
-                     :on-error on-error}))
+(def rules
+  "The access rules which control user access to routes."
+  [{:uri     "/"  ; Need to be logged in to access the home page.
+    :handler authenticated?}])
 
 (defn wrap-auth [handler]
   (let [backend (session-backend)]
     (-> handler
+        (wrap-access-rules {:rules rules :on-error on-error})
         (wrap-authentication backend)
         (wrap-authorization backend))))
 
@@ -61,9 +74,9 @@
   (-> ((:middleware defaults) handler)
       wrap-auth
       wrap-flash
-      (wrap-session {:cookie-attrs {:http-only true}})
-      (wrap-defaults
-        (-> site-defaults
-            (assoc-in [:security :anti-forgery] false)
-            (dissoc :session)))
+      (wrap-session {:cookie-attrs {:timeout   0 ; Don't time out sessions, for convenient web clipping use.
+                                    :same-site true}})
+      (wrap-defaults (-> site-defaults
+                         (assoc-in [:security :anti-forgery] false)  ; TODO: Why can't I enable this?
+                         (assoc-in [:session :store] (jdbc-store db/*db*))))
       wrap-internal-error))
