@@ -16,8 +16,7 @@
 (defn on-message
   "Called when a message is received from the web socket."
   [{:keys [channel data]}]
-  (println "Received message, data:" data)
-  (ws/send "message received" channel))
+  (println "Received message, data:" data))
 
 (defn on-close
   "Called when the web socket is closed."
