@@ -61,7 +61,9 @@
 (def rules
   "The access rules which control user access to routes."
   [{:uri     "/"  ; Need to be logged in to access the home page.
-    :handler authenticated?}])
+    :handler authenticated?}
+   {:uri "/ws"  ; Need special header to open the web socket.
+    :handler (fn [request] (= (get-in request [:headers "x-shade-token"]) (env :websocket-token)))}])
 
 (defn wrap-auth [handler]
   (let [backend (session-backend)]
@@ -74,7 +76,8 @@
   (-> ((:middleware defaults) handler)
       wrap-auth
       wrap-flash
-      (wrap-session {:cookie-attrs {:timeout   0 ; Don't time out sessions, for convenient web clipping use.
+      (wrap-session {:timeout      0 ; Don't time out sessions, for convenient web clipping use.
+                     :cookie-attrs {:timeout   0
                                     :same-site true}})
       (wrap-defaults (-> site-defaults
                          (assoc-in [:security :anti-forgery] false)  ; TODO: Why can't I enable this?

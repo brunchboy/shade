@@ -2,6 +2,7 @@
   (:require [shade.middleware :as middleware]
             [shade.layout :refer [error-page]]
             [shade.routes.home :refer [home-routes]]
+            [shade.routes.websocket :refer [websocket-routes]]
             [reitit.ring :as ring]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.middleware.webjars :refer [wrap-webjars]]
@@ -16,7 +17,8 @@
   :start
   (ring/ring-handler
     (ring/router
-      [(home-routes)])
+     [(home-routes)
+      (websocket-routes)])
     (ring/routes
       (ring/create-resource-handler
         {:path "/"})
