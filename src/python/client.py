@@ -41,16 +41,24 @@ kw_action = edn_format.Keyword("action")
 kw_blinds = edn_format.Keyword("blinds")
 kw_details = edn_format.Keyword("details")
 kw_error = edn_format.Keyword("error")
+kw_id = edn_format.Keyword("id")
 kw_level = edn_format.Keyword("level")
 kw_message = edn_format.Keyword("message")
+kw_set_levels = edn_format.Keyword("set-levels")
 kw_status = edn_format.Keyword("status")
 kw_stopped = edn_format.Keyword("stopped")
 
 
+def set_levels(ws, blinds):
+    for entry in blinds:
+        blind = C4Blind(director, entry.get(kw_id))
+        asyncio.run(blind.setLevelTarget(entry.get(kw_level)))
+    ws.send(edn_format.dumps({kw_action: kw_set_levels}))
+
 def report_status(ws, blinds):
     result = {}
     for id in blinds:
-        blind=C4Blind(director, id)
+        blind = C4Blind(director, id)
         result[id] = { kw_level: asyncio.run(blind.getLevel()), kw_stopped: asyncio.run(blind.getStopped())}
     ws.send(edn_format.dumps({kw_action: kw_status, kw_blinds: result}))
 
@@ -60,8 +68,8 @@ def on_message(ws, message):
 
     if action == kw_status:
         report_status(ws, parsed.get(kw_blinds))
-    elif action == kw_error:  # Placeholder to remind of syntax
-        report_status(ws, [])
+    elif action == kw_set_levels:
+        set_levels(ws, parsed.get(kw_blinds))
     else:
         ws.send(edn_format.dumps({kw_action: kw_error, kw_message: "Unknown action", kw_details: action}))
 

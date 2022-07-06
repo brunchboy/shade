@@ -1,7 +1,8 @@
 (ns shade.routes.websocket
   "Handles communication with the web socket that relayes queries and
   commands to the blind controller running on our home network."
-  (:require [ring.adapter.undertow.websocket :as ws]))
+  (:require [shade.db.core :as db]
+            [ring.adapter.undertow.websocket :as ws]))
 
 (def channels-open
   "Keeps track of the channels associated with the open web sockets."
@@ -41,3 +42,15 @@
 
 (defn websocket-routes []
   [["/ws" handler]])
+
+(defn run-macro
+  "Loads the entries of a macro, and sends instructions to configure the
+  blinds accordingly."
+  [macro-id]
+  (let [entries (db/get-macro-entries {:macro macro-id})]
+    (ws/send (str {:action :set-levels
+                   :blinds (mapv (fn [entry]
+                                   {:id    (:controller_id entry)
+                                    :level (:level entry)})
+                                 entries)})
+             (first @channels-open))))
