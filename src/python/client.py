@@ -49,10 +49,12 @@ kw_status = edn_format.Keyword("status")
 kw_stopped = edn_format.Keyword("stopped")
 
 
-def set_levels(ws, blinds):
-    for entry in blinds:
-        blind = C4Blind(director, entry.get(kw_id))
-        asyncio.run(blind.setLevelTarget(entry.get(kw_level)))
+async def set_level(spec):
+    blind = C4Blind(director, spec.get(kw_id))
+    return await blind.setLevelTarget(spec.get(kw_level))
+
+async def set_levels(ws, blinds):
+    await asyncio.gather(*map(set_level, blinds))
     ws.send(edn_format.dumps({kw_action: kw_set_levels}))
 
 def report_status(ws, blinds):
@@ -69,7 +71,7 @@ def on_message(ws, message):
     if action == kw_status:
         report_status(ws, parsed.get(kw_blinds))
     elif action == kw_set_levels:
-        set_levels(ws, parsed.get(kw_blinds))
+        asyncio.run(set_levels(ws, parsed.get(kw_blinds)))
     else:
         ws.send(edn_format.dumps({kw_action: kw_error, kw_message: "Unknown action", kw_details: action}))
 
