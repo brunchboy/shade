@@ -76,10 +76,14 @@
   (-> ((:middleware defaults) handler)
       wrap-auth
       wrap-flash
-      (wrap-session {:timeout      0 ; Don't time out sessions, for convenient web clipping use.
-                     :cookie-attrs {:timeout   0
+      (wrap-session {:timeout      Integer/MAX_VALUE
+                     :cookie-attrs {:max-age   Integer/MAX_VALUE
+                                    :http-only false
                                     :same-site true}})
       (wrap-defaults (-> site-defaults
                          (assoc-in [:security :anti-forgery] false)  ; TODO: Why can't I enable this?
-                         (assoc-in [:session :store] (jdbc-store db/*db*))))
+                         (assoc-in [:session :store] (jdbc-store db/*db*))
+                         (assoc-in [:session :cookie-attrs] {:max-age   Integer/MAX_VALUE
+                                                             :http-only false
+                                                             :same-site :strict})))
       wrap-internal-error))
