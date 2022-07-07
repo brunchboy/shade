@@ -101,13 +101,26 @@ UPDATE macros
 -- :doc retrieves all macro records
 SELECT * FROM macros
 
+-- :name list-macros-for-user :? :*
+-- :doc retrieves all macro records with any entries available to the specified user
+SELECT m.*, count(s)
+  FROM macros m
+  INNER JOIN macro_entries me on m.id = me.macro
+  INNER JOIN shades s ON me.shade = s.id
+  INNER JOIN rooms r ON s.room = r.id
+  INNER JOIN users_rooms ur on ur.room = r.id
+ WHERE ur.user = :user
+ GROUP BY m.id
+
 -- :name get-macro-entries :? :*
--- :doc retrieves the entries for the macro with the specified id
-SELECT me.*, s.controller_id
+-- :doc retrieves the entries available to the specified user for the macro with the specified id
+SELECT me.*, s.controller_id, r.id as room, r.name as room_name
   FROM macro_entries me
-  JOIN shades s
-    ON me.shade = s.id
+  INNER JOIN shades s ON me.shade = s.id
+  INNER JOIN rooms r ON s.room = r.id
+  INNER JOIN users_rooms ur on ur.room = r.id
  WHERE me.macro = :macro
+   AND ur.user = :user
 
 -- :name delete-macro! :! :n
 -- :doc deletes a macro record given the id

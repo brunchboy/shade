@@ -44,10 +44,11 @@
   [["/ws" handler]])
 
 (defn run-macro
-  "Loads the entries of a macro, and sends instructions to configure the
-  blinds accordingly."
-  [macro-id]
-  (let [entries (db/get-macro-entries {:macro macro-id})]
+  "Loads the entries available to the specified user of the specified
+  macro, and sends instructions to configure the blinds accordingly."
+  [macro-id user-id]
+  (let [entries (db/get-macro-entries {:macro macro-id
+                                       :user  user-id})]
     (ws/send (str {:action :set-levels
                    :blinds (mapv (fn [entry]
                                    {:id    (:controller_id entry)
