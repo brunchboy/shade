@@ -113,6 +113,15 @@ has access to my system keychain for the above secrets,
     </dict>
     </plist>
 
+Since you won't want to be talking to my own web application, you'll
+also need an environment variable setting for `SHADE_WS_URL` inside
+the `EnvironmentVariables` `dict` to override the default, something
+like:
+
+            <key>SHADE_WS_URL</key>
+            <string>wss://shade.my.domain</string>
+
+
 ## License
 
 Released under the MIT license, http://opensource.org/licenses/MIT
