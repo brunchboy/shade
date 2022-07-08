@@ -94,6 +94,8 @@ has access to my system keychain for the above secrets,
             <string>192.168.1.150</string>
             <key>C4_USERNAME</key>
             <string>user@domain.org</string>
+            <key>SHADE_WS_URL</key>
+            <string>wss://shade.my.domain</string>
         </dict>
         <key>KeepAlive</key>
         <true/>
@@ -113,14 +115,9 @@ has access to my system keychain for the above secrets,
     </dict>
     </plist>
 
-Since you won't want to be talking to my own web application, you'll
-also need an environment variable setting for `SHADE_WS_URL` inside
-the `EnvironmentVariables` `dict` to override the default, something
-like:
-
-            <key>SHADE_WS_URL</key>
-            <string>wss://shade.my.domain</string>
-
+Of course you will want to adjust the environment variable setting for
+`C4_DIRECTOR_IP`, `C4_USERNAME`, and `SHADE_WS_URL` inside the
+`EnvironmentVariables` `dict` to reflect your actual setup.
 
 ## License
 
