@@ -1,6 +1,7 @@
 (ns shade.core
   (:require [shade.handler :as handler]
             [shade.nrepl :as nrepl]
+            [cider.nrepl :refer (cider-nrepl-handler)]
             [luminus.http-server :as http]
             [luminus-migrations.core :as migrations]
             [shade.config :refer [env]]
@@ -35,8 +36,9 @@
 (mount/defstate ^{:on-reload :noop} repl-server
   :start
   (when (env :nrepl-port)
-    (nrepl/start {:bind (env :nrepl-bind)
-                  :port (env :nrepl-port)}))
+    (nrepl/start {:bind    (env :nrepl-bind)
+                  :port    (env :nrepl-port)
+                  :handler cider-nrepl-handler}))
   :stop
   (when repl-server
     (nrepl/stop repl-server)))

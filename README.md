@@ -16,15 +16,102 @@ Originally generated using Luminus version "4.38"
 
 ## Prerequisites
 
-You will need [Leiningen][1] 2.0 or above installed.
+You will need [Leiningen][1] 2.0 or above installed, and a recent Java
+distribution, to build and run the Clojure web application.
+
+The blind controller daemon requires `python3` and the
+[websocket-client][2], [rel][3], [edn_format][4], [keyring][5], and
+[pyControl4][6] libraries.
 
 [1]: https://github.com/technomancy/leiningen
+[2]: https://pypi.org/project/websocket-client/
+[3]: https://pypi.org/project/rel/
+[4]: https://pypi.org/project/edn-format/
+[5]: https://pypi.org/project/keyring/
+[6]: https://pypi.org/project/pyControl4/
 
 ## Running
 
 To start a web server for the application, run:
 
     lein run
+
+For a deployed installation, you will want to build a standalone
+überjar, using:
+
+    lein uberjar
+
+Then copy the resulting `target/uberjar/shade.jar` to somewhere like
+`/usr/local/lib/shade.jar`, and configure it to be run as a system
+daemon. Here is an example of a `systemd` configuration file which
+does that on a modern Linux, `shade.service`:
+
+    # See https://github.com/brunchboy/shade
+
+    [Unit]
+    Description=The Shade Web Application
+    Wants=httpd-init.service
+    After=network.target remote-fs.target nss-lookup.target httpd-init.service
+
+    [Service]
+    Type=simple
+    Environment="DATABASE_URL=jdbc:postgresql:shade?user=shade&password=...elided..." "SHADE_WS_TOKEN=someSecretToken" "JAVA_TOOL_OPTIONS=-Xmx256m" "NREPL_PORT=7001"
+    SuccessExitStatus=143
+    ExecStart=/usr/bin/java -jar /usr/local/lib/shade.jar
+    KillMode=process
+    Restart=on-failure
+    User=james
+    Group=james
+
+    [Install]
+    WantedBy=multi-user.target
+
+To start the blind controller daemon, which needs to run on the same
+LAN as the Control4 Director appliance, you will need to set
+environment variables `C4_USERNAME` and `C4_DIRECTOR_IP` to your
+Control4 user name and the IP address of the Control4 Director
+appliance on your local LAN. Your key ring will need to contain the
+password for that account (under an entry for `control4.com`), and the
+token you used passed as `SHADE_WS_TOKEN` above as the password for
+the account `x-shade-token` under an entry for
+`shade.deepsymmetry.org`. Then you can launch the daemon using:
+
+    python3 src/python/client.py
+
+Once again, you'll want to configure this to run automatically in the
+background. Here is the macOS `launchd` agent file I use to run it as
+an agent under my own login on a Mac Mini in our network rack, so it
+has access to my system keychain for the above secrets,
+`~/Library/LaunchAgents/org.deepsymmetry.shades-agent.plist`:
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>EnvironmentVariables</key>
+        <dict>
+            <key>C4_DIRECTOR_IP</key>
+            <string>192.168.1.150</string>
+            <key>C4_USERNAME</key>
+            <string>user@domain.org</string>
+        </dict>
+        <key>KeepAlive</key>
+        <true/>
+        <key>Label</key>
+        <string>org.deepsymmetry.shaded</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>/usr/local/bin/python3</string>
+            <string>/Users/james/git/shade/src/python/client.py</string>
+        </array>
+        <key>RunAtLoad</key>
+        <true/>
+        <key>StandardErrorPath</key>
+        <string>/tmp/org.deepsymmetry.shaded.stderr</string>
+        <key>StandardOutPath</key>
+        <string>/tmp/org.deepsymmetry.shaded.stdout</string>
+    </dict>
+    </plist>
 
 ## License
 

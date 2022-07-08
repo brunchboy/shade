@@ -8,6 +8,7 @@
 #   websocket-client, https://pypi.org/project/websocket-client/
 #   rel, https://pypi.org/project/rel/
 #   edn_format, https://pypi.org/project/edn-format/
+#   keyring, https://pypi.org/project/keyring/
 #   pyControl4, https://pypi.org/project/pyControl4/
 
 import websocket
