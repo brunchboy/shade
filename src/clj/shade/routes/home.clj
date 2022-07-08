@@ -2,21 +2,31 @@
   (:require
    [shade.layout :as layout]
    [shade.db.core :as db]
+   [shade.routes.websocket :as ws]
    [clojure.java.io :as io]
    [shade.middleware :as middleware]
    [buddy.auth :as auth]
    [buddy.hashers :as hashers]
    [ring.util.response :refer [redirect content-type]]
-   [ring.util.http-response :as response]))
+   [ring.util.http-response :as response]
+   [ring.util.json-response :refer [json-response]]))
 
 (defn home-page [request]
-  (layout/render request "home.html" {:docs (-> "docs/docs.md" io/resource slurp)}))
+  (println "home" (:session request))  ; TODO: Remove
+  (layout/render request "home.html"
+                 {:macros (db/list-macros-for-user {:user (get-in request [:session :identity :id])})}))
 
 (defn about-page [request]
   (layout/render request "about.html"))
 
 (defn login-page [request]
+  (println "login" (:session request))  ; TODO: Remove
   (layout/render request "login.html"))
+
+(defn run-macro [{:keys [path-params session]}]
+  []
+  (ws/run-macro (java.util.UUID/fromString (:id path-params)) (get-in session [:identity :id]))
+  (json-response {:action "Macro run"}))
 
 (defn login-authenticate
   "Check request username and password against authdata
@@ -48,6 +58,7 @@
                  middleware/wrap-formats]}
    ["/" {:get home-page}]
    ["/about" {:get about-page}]
-   ["/login" {:get login-page
+   ["/login" {:get  login-page
               :post login-authenticate}]
-   ["/logout" {:get logout}]])
+   ["/logout" {:get logout}]
+   ["/run/:id" {:get run-macro}]])

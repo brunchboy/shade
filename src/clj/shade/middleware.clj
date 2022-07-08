@@ -60,9 +60,11 @@
 
 (def rules
   "The access rules which control user access to routes."
-  [{:uri     "/"  ; Need to be logged in to access the home page.
+  [{:uri     "/" ; Need to be logged in to access the home page.
     :handler authenticated?}
-   {:uri "/ws"  ; Need special header to open the web socket.
+   {:uri     "/run/*" ; Need to be logged in to run macros
+    :handler authenticated?}
+   {:uri     "/ws" ; Need special header to open the web socket.
     :handler (fn [request] (= (get-in request [:headers "x-shade-token"]) (env :websocket-token)))}])
 
 (defn wrap-auth [handler]

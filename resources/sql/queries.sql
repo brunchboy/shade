@@ -100,6 +100,7 @@ UPDATE macros
 -- :name list-macros :? :*
 -- :doc retrieves all macro records
 SELECT * FROM macros
+ ORDER BY name
 
 -- :name list-macros-for-user :? :*
 -- :doc retrieves all macro records with any entries available to the specified user
@@ -111,6 +112,7 @@ SELECT m.*, count(s)
   INNER JOIN users_rooms ur on ur.room = r.id
  WHERE ur.user = :user
  GROUP BY m.id
+ ORDER BY m.name
 
 -- :name get-macro-entries :? :*
 -- :doc retrieves the entries available to the specified user for the macro with the specified id
