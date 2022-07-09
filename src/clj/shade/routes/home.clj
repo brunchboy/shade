@@ -93,7 +93,28 @@
 
                    (and (not (str/blank? new-pw))
                         (not (hashers/check password (:pass user))))
-                   (conj "Current password was not correct."))]
+                   (conj "Current password was not correct.")
+
+                   (and (not (str/blank? new-pw))
+                        (not (<= 12 (.length new-pw))))
+                   (conj "New password must be at least 12 characters long.")
+
+                   (and (not (str/blank? new-pw))
+                        (not (re-matches #".*[a-z].*" new-pw)))
+                   (conj "New password must contain a lowercase letter.")
+
+                   (and (not (str/blank? new-pw))
+                        (not (re-matches #".*[A-Z].*" new-pw)))
+                   (conj "New password must contain an uppercase letter.")
+
+                   (and (not (str/blank? new-pw))
+                        (not (re-matches #".*[0-9].*" new-pw)))
+                   (conj "New password must contain a number.")
+
+
+                   (and (not (str/blank? new-pw))
+                        (not (re-matches #".*[^0-9A-Za-z].*" new-pw)))
+                   (conj "New password must contain a special character that is not a letter or number."))]
     (if (seq errors)
       (layout/render request "profile.html"
                      {:user         {:name  name
