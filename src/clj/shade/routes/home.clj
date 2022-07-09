@@ -7,6 +7,7 @@
    [clojure.string :as str]
    [shade.middleware :as middleware]
    [buddy.auth :as auth]
+   [shade.auth :as shade-auth]
    [buddy.hashers :as hashers]
    [ring.util.response :refer [redirect content-type]]
    [ring.util.http-response :as response]
@@ -103,6 +104,7 @@
                                  :email email}
                                 (when-not (str/blank? new-pw)
                                   {:pass (hashers/derive new-pw)})))
+        (when-not (str/blank? new-pw) (shade-auth/clear-user-sessions user))
         (let [updated-session (update session :identity merge {:name  name
                                                                :email email})]
           (-> (redirect "/")

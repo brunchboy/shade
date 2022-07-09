@@ -1,3 +1,7 @@
+-- :name list-session-ids :? :*
+-- :doc retrieves all session ids
+SELECT session_id from session_store
+
 -- :name create-user! :! :n
 -- :doc creates a new user record
 INSERT INTO users (id, name, email, admin, pass)
