@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+{% if active %}
 <script type="text/javascript">
   function runMacro(id) {
     const req = new XMLHttpRequest();
@@ -41,4 +42,14 @@
   </tr>
   {% endfor %}
 </table>
+{% else %}
+<h1 class="title">Welcome</h1>
+<h2 class="subtitle">Valid but Inactive Account</h2>
+
+<p>You have successfully logged into Shade, but your account is not
+currently active for controlling blinds. You can update your profile
+if you'd like, and check back later once you expect to have the
+ability to manage shades.</p>
+
+{% endif %}
 {% endblock %}

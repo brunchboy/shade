@@ -14,9 +14,11 @@
    [ring.util.json-response :refer [json-response]]))
 
 (defn home-page [request]
-  (let [user-id   (get-in request [:session :identity :id])
-        macros    (db/list-macros-for-user {:user user-id})]
-    (layout/render request "home.html" {:macros (ws/macros-in-effect macros user-id)})))
+  (let [user-id (get-in request [:session :identity :id])
+        macros  (db/list-macros-for-user {:user user-id})
+        active  (:is_active (db/get-user {:id user-id}))]
+    (layout/render request "home.html" {:macros (ws/macros-in-effect macros user-id)
+                                        :active active})))
 
 (defn macro-states [request]
   (let [user-id   (get-in request [:session :identity :id])
