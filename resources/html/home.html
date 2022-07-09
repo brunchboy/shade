@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="content">
-  <script type="text/javascript">
-    function runMacro(id) {
-      const Http = new XMLHttpRequest();
-      Http.open("GET", "run/" + id);
-      Http.send();
-    }
-  </script>
+<script type="text/javascript">
+  function runMacro(id) {
+    const Http = new XMLHttpRequest();
+    Http.open("GET", "run/" + id);
+    Http.send();
+  }
+</script>
 
-  <table>
-    {% for macro in macros %}
-    <tr>
-      <td><button class="button is-primary" onclick="runMacro('{{macro.id}}')">{{ macro.name }}</button></td>
-    </tr>
-    {% endfor %}
-  </table>
+<h1 class="title">Macros</h1>
+<h2 class="subtitle">Set Groups of Blinds to Preset Locations.</h2>
 
-  </div>
+<table class="table">
+  {% for macro in macros %}
+  <tr>
+    <td><button class="button is-primary" onclick="runMacro('{{macro.id}}')">{{ macro.name }}</button></td>
+  </tr>
+  {% endfor %}
+</table>
 {% endblock %}

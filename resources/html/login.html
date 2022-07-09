@@ -5,12 +5,21 @@
 <div class="notification is-danger">{{error}}</div>
 {% endif %}
 
-<h1>Login</h1>
+<h1 class="title">Login</h1>
+<h2 class="subtitle">You must log in to use this system.</h2>
 
 <form method="post">
+  <div class="columns">
     {% csrf-field %}
-    <input type="text" placeholder="Email:" name="email" />
-    <input type="password" placeholder="Password:" name="password" />
-    <input type="submit" value="Submit" />
+    <div class="column">
+      <input class="input" type="email" placeholder="Email:" name="email" />
+    </div>
+    <div class="column">
+      <input class="input" type="password" placeholder="Password:" name="password" />
+    </div>
+    <div class="column is-one-fifth">
+      <input class="button is-primary" type="submit" value="Log In" />
+    </div>
+  </div>
 </form>
 {% endblock %}
