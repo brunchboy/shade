@@ -2,10 +2,33 @@
 {% block content %}
 <script type="text/javascript">
   function runMacro(id) {
-    const Http = new XMLHttpRequest();
-    Http.open("GET", "run/" + id);
-    Http.send();
+    const req = new XMLHttpRequest();
+    req.open("GET", "run/" + id);
+    req.send();
   }
+
+  function updateMacroButton(entry) {
+    const button = document.getElementById("macro-" + entry.id);
+    if (entry["in-effect"]) {
+      button.classList.add("is-light");
+    } else {
+      button.classList.remove("is-light");
+    }
+  }
+
+  function macroStateListener() {
+    const states = JSON.parse(this.responseText);
+    states.forEach(entry => updateMacroButton(entry));
+  }
+
+  function updateMacroStates() {
+    const req = new XMLHttpRequest();
+    req.addEventListener("load", macroStateListener);
+    req.open("GET", "macro-states");
+    req.send();
+  }
+
+  setInterval(updateMacroStates, 5000);
 </script>
 
 <h1 class="title">Macros</h1>
@@ -14,7 +37,7 @@
 <table class="table">
   {% for macro in macros %}
   <tr>
-    <td><button class="button is-primary" onclick="runMacro('{{macro.id}}')">{{ macro.name }}</button></td>
+    <td><button id="macro-{{macro.id}}" class="button is-primary{% if macro.in-effect %} is-light{% endif %}" onclick="runMacro('{{macro.id}}')">{{ macro.name }}</button></td>
   </tr>
   {% endfor %}
 </table>

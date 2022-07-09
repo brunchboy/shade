@@ -64,6 +64,8 @@
     :handler authenticated?}
    {:uri     "/run/*" ; Need to be logged in to run macros
     :handler authenticated?}
+   {:uri     "/macro-states" ; Need to be logged in to check macro states
+    :handler authenticated?}
    {:uri     "/ws" ; Need special header to open the web socket.
     :handler (fn [request] (= (get-in request [:headers "x-shade-token"]) (env :websocket-token)))}])
 

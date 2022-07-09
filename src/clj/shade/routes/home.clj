@@ -13,9 +13,14 @@
    [ring.util.json-response :refer [json-response]]))
 
 (defn home-page [request]
-  (println "home" (:session request))  ; TODO: Remove
-  (layout/render request "home.html"
-                 {:macros (db/list-macros-for-user {:user (get-in request [:session :identity :id])})}))
+  (let [user-id   (get-in request [:session :identity :id])
+        macros    (db/list-macros-for-user {:user user-id})]
+    (layout/render request "home.html" {:macros (ws/macros-in-effect macros user-id)})))
+
+(defn macro-states [request]
+  (let [user-id   (get-in request [:session :identity :id])
+        macros    (db/list-macros-for-user {:user user-id})]
+    (response/ok (map #(select-keys % [:id :in-effect]) (ws/macros-in-effect macros user-id)))))
 
 (defn about-page [request]
   (layout/render request "about.html"))
@@ -118,4 +123,5 @@
    ["/logout" {:get logout}]
    ["/profile" {:get  profile-page
                 :post profile-update}]
-   ["/run/:id" {:get run-macro}]])
+   ["/run/:id" {:get run-macro}]
+   ["/macro-states" {:get macro-states}]])

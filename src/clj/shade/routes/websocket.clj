@@ -121,6 +121,22 @@
         (swap! shade-state assoc-in [:shades (:shade entry) :moving?] true))
       (tickle-state-updater))))
 
+;; TODO: Also add macro-room entries for individual rooms which are in
+;; the right position for the macro.
+(defn macros-in-effect
+  "Loads the entries available to the specified user for each specified
+  macro and checks whether the blinds are currently at the level
+  desired. Returns the list of macros with an additional `:in-effect`
+  attribute indicating whether that macro would do nothing if run by
+  that user right now."
+  [macros user-id]
+  (let [state (:shades @shade-state)]
+    (mapv (fn [macro]
+            (let [entries (db/get-macro-entries {:macro (:id macro)
+                                                 :user  user-id})]
+              (assoc macro :in-effect (every? #(= (:level %) (get-in state [(:shade %) :level])) entries))))
+          macros)))
+
 (def moving-interval
   "How often to check the state of a blind that is believed to be
   moving, in milliseconds."
