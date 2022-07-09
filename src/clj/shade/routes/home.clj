@@ -48,7 +48,9 @@
     (if (and user
              (hashers/check password (:pass user)))
       (let [next-url        (get-in request [:query-params "next"] "/")
-            updated-session (assoc session :identity (into {} (select-keys user [:id :name :email :admin])))]
+            updated-session (assoc session :identity
+                                   (into {} (select-keys user [:id :name :email :admin :last_login])))]
+        (db/update-user-login-timestamp! user)
         (-> (redirect next-url)
             (assoc :session updated-session)))
       (layout/render request "login.html" {:error "Unrecognized Email or Password."}))))

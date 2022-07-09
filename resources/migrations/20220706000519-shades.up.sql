@@ -10,3 +10,7 @@ CREATE TABLE shades
 
 ALTER TABLE ONLY shades
   ADD CONSTRAINT shades_room_fkey FOREIGN KEY (room) REFERENCES rooms(id) ON DELETE CASCADE;
+
+--;;
+
+CREATE UNIQUE INDEX shades_controller_id_idx ON shades(controller_id);

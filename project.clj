@@ -28,6 +28,7 @@
                  [cider/cider-nrepl "0.28.5"]
                  [org.clojure/clojure "1.11.1"]
                  [org.clojure/tools.cli "1.0.206"]
+                 [org.clojure/core.async "1.5.648"]
                  [org.clojure/tools.logging "1.2.4"]
                  [org.postgresql/postgresql "42.3.2"]
                  [org.webjars.npm/bulma "0.9.3"]

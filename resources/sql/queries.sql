@@ -12,6 +12,7 @@ UPDATE users
 -- :name list-users :? :*
 -- :doc retrieves all user records
 SELECT * FROM users
+ ORDER by email;
 
 -- :name get-user :? :1
 -- :doc retrieves a user record given the id
@@ -22,6 +23,11 @@ SELECT * FROM users
 -- :doc retrieves a user record given the email
 SELECT * FROM users
  WHERE email = :email
+
+-- :name update-user-login-timestamp! :! :n
+UPDATE users
+   SET last_login = now()
+ WHERE id = :id
 
 -- :name delete-user! :! :n
 -- :doc deletes a user record given the id
@@ -79,6 +85,11 @@ SELECT * FROM shades
 -- :doc retrieves a shade record given the id
 SELECT * FROM shades
  WHERE id = :id
+
+-- :name get-shade-by-controller-id :? :1
+-- :doc retrieves a shade record given the controller id
+SELECT * FROM shades
+ WHERE controller_id = :id
 
 -- :name delete-shade! :! :n
 -- :doc deletes a shade record given the id
