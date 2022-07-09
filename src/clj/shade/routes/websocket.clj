@@ -118,7 +118,9 @@
                                    entries)})
                ch)
       (doseq [entry entries]
-        (swap! shade-state assoc-in [:shades (:shade entry) :moving?] true))
+        (swap! shade-state update-in [:shades (:shade entry)]
+               (fn [shade]
+                 (assoc shade :moving? (not= (:level entry) (:level shade))))))
       (tickle-state-updater))))
 
 ;; TODO: Also add macro-room entries for individual rooms which are in
