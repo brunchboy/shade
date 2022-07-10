@@ -6,7 +6,6 @@
 #
 # Requires:
 #   websocket-client, https://pypi.org/project/websocket-client/
-#   rel, https://pypi.org/project/rel/
 #   edn_format, https://pypi.org/project/edn-format/
 #   keyring, https://pypi.org/project/keyring/
 #   pyControl4, https://pypi.org/project/pyControl4/
@@ -14,7 +13,6 @@
 import websocket
 import _thread
 import time
-import rel
 import keyring
 import os
 import asyncio
@@ -100,8 +98,4 @@ if __name__ == "__main__":
                                 on_close=on_close,
                                 header={"x-shade-token": token})
 
-    ws.run_forever(dispatcher=rel)  # Set dispatcher to automatic reconnection
-    rel.signal(2, rel.abort)  # Keyboard Interrupt
-    rel.dispatch()
-#    ws.send("sent a message from python!")
-    ws.close()
+    ws.run_forever()

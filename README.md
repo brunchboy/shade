@@ -20,15 +20,18 @@ You will need [Leiningen][1] 2.0 or above installed, and a recent Java
 distribution, to build and run the Clojure web application.
 
 The blind controller daemon requires `python3` and the
-[websocket-client][2], [rel][3], [edn_format][4], [keyring][5], and
-[pyControl4][6] libraries.
+[websocket-client][2], [edn_format][3], [keyring][4], and
+[pyControl4][5] libraries.
+
+Currently, it is unable to retry when the connection to the server is
+lost, so you need to wrap it in a mechanism that respawns it when it
+dies.
 
 [1]: https://github.com/technomancy/leiningen
 [2]: https://pypi.org/project/websocket-client/
-[3]: https://pypi.org/project/rel/
-[4]: https://pypi.org/project/edn-format/
-[5]: https://pypi.org/project/keyring/
-[6]: https://pypi.org/project/pyControl4/
+[3]: https://pypi.org/project/edn-format/
+[4]: https://pypi.org/project/keyring/
+[5]: https://pypi.org/project/pyControl4/
 
 ## Running
 
