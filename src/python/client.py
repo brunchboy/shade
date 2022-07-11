@@ -22,19 +22,32 @@ import edn_format
 from pyControl4.account import C4Account
 from pyControl4.director import C4Director
 from pyControl4.blind import C4Blind
+from pyControl4.error_handling import BadCredentials, BadToken
 
-username = os.environ["C4_USERNAME"]
-# TODO: This should perhaps be switched to use environment variables too for more robustness against python upgrades
-#       (i.e. to avoid having to give keychain permissions to the new version of python).
-account = C4Account(username, keyring.get_password("control4.com", username))
-asyncio.run(account.getAccountBearerToken())
-controllers = asyncio.run(account.getAccountControllers())
 
-director_bearer_token = asyncio.run(
-    account.getDirectorBearerToken(controllers["controllerCommonName"])
-)
+# See https://github.com/home-assistant/core/blob/dev/homeassistant/components/control4/__init__.py
+# and https://github.com/home-assistant/core/blob/dev/homeassistant/components/control4/director_utils.py
+async def login_to_director() -> None:
+    """Set up communication with Control4."""
+    username = os.environ["C4_USERNAME"]
+    # TODO: This should perhaps be switched to use environment
+    #       variables too for more robustness against python upgrades
+    #       (i.e. to avoid having to give keychain permissions to the
+    #       new version of python).
+    account = C4Account(username, keyring.get_password("control4.com", username))
+    try:
+        await account.getAccountBearerToken()
+    except BadCredentials as exception:
+        print("Error authenticating with Control4 account API, incorrect username or password: {}".format(exception))
+        return
+    controllers = await account.getAccountControllers()
+    director_bearer_token = await account.getDirectorBearerToken(controllers["controllerCommonName"])
+    global director
+    director = C4Director(os.environ["C4_DIRECTOR_IP"], director_bearer_token["token"])
+    print("Logged in to Control4 director, token expires: {}".format(director_bearer_token["token_expiration"]))
 
-director = C4Director(os.environ["C4_DIRECTOR_IP"], director_bearer_token["token"])
+
+asyncio.run(login_to_director())
 
 kw_action = edn_format.Keyword("action")
 kw_blinds = edn_format.Keyword("blinds")
@@ -50,17 +63,27 @@ kw_stopped = edn_format.Keyword("stopped")
 
 async def set_level(spec):
     blind = C4Blind(director, spec.get(kw_id))
-    return await blind.setLevelTarget(spec.get(kw_level))
+    try:
+        return await blind.setLevelTarget(spec.get(kw_level))
+    except BadToken:
+        print("Updating Control4 director token")
+        await login_to_director()
+        return await blind.setLevelTarget(spec.get(kw_level))
 
 async def set_levels(ws, blinds):
     await asyncio.gather(*map(set_level, blinds))
     ws.send(edn_format.dumps({kw_action: kw_set_levels}))
 
-def report_status(ws, blinds):
+async def report_status(ws, blinds):
     result = {}
     for id in blinds:
         blind = C4Blind(director, id)
-        result[id] = { kw_level: asyncio.run(blind.getLevel()), kw_stopped: asyncio.run(blind.getStopped())}
+        try:
+            result[id] = { kw_level: await blind.getLevel(), kw_stopped: await blind.getStopped()}
+        except BadToken:
+            print("Updating Control4 director token")
+            await login_to_director()
+            result[id] = { kw_level: asyncio.run(blind.getLevel()), kw_stopped: asyncio.run(blind.getStopped())}
     ws.send(edn_format.dumps({kw_action: kw_status, kw_blinds: result}))
 
 def on_message(ws, message):
@@ -68,7 +91,7 @@ def on_message(ws, message):
     action = parsed.get(kw_action)
 
     if action == kw_status:
-        report_status(ws, parsed.get(kw_blinds))
+        asyncio.run(report_status(ws, parsed.get(kw_blinds)))
     elif action == kw_set_levels:
         asyncio.run(set_levels(ws, parsed.get(kw_blinds)))
     else:
