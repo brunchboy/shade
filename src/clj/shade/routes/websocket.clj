@@ -6,7 +6,8 @@
             [clojure.core.async :as async]
             [clojure.edn :as edn]
             [clojure.tools.logging :as log]
-            [mount.core :refer [defstate]]))
+            [mount.core :refer [defstate]])
+  (:import (java.util.concurrent TimeUnit)))
 
 (def channel-open
   "Keeps track of the channel associated with the open web socket."
@@ -47,19 +48,46 @@
     (swap! shade-state assoc-in [:shades (:id shade) :moving?] true))
   (tickle-state-updater))
 
+(defn- gather-director-vars
+  "Given a list of director variable values, transforms them into a map
+  keyed by item ID."
+  [var-list]
+  (reduce (fn [acc v]
+            (assoc-in acc [(get v "id") (get v "varName")] (get v "value")))
+          {}
+          var-list))
+
 (defn on-message
   "Called when a message is received from the web socket."
   [{:keys [data]}]
-  (println "Received message, data:" data)
+  #_(println "Received message, data:" data)
   (let [{:keys [action] :as message} (edn/read-string data)]
-    (cond (= action :status)
-          (future
-            (doseq [[controller-id status] (:blinds message)]
-              (let [shade (db/get-shade-by-controller-id {:id controller-id})]
-                (swap! shade-state update-in [:shades (:id shade)]
-                       merge {:moving?     (not (:stopped status))
-                              :level       (:level status)
-                              :last-update (System/currentTimeMillis)})))))))
+    (case action
+      :positions
+      (future
+        (println "Received updated blind positions.")
+        (doseq [[k v] (gather-director-vars (:positions message))]
+          (when-let [shade (db/get-shade-by-controller-id {:id k})]
+            (swap! shade-state update-in [:shades (:id shade)]
+                   merge {:moving?       (zero? (get v "Stopped"))
+                          :level         (get v "Level")
+                          :target-level  (get v "Target Level")})))
+        (swap! shade-state assoc :last-update (System/currentTimeMillis)))
+
+      :batteries
+      (future
+        (println "Received updated battery levels.")
+        (let [vars (gather-director-vars (:batteries message))]
+          (doseq [shade (db/list-shades)]
+                (if-let [level (get-in vars [(:parent_id shade) "Battery Level"])]
+                  (swap! shade-state assoc-in [:shades (:id shade) :battery-level] level)
+                  (println "Could not find battery level for shade with parent ID" (:parent_id shade))))
+              (swap! shade-state assoc :last-battery-update (System/currentTimeMillis))))
+
+      :set-levels
+      (println "Received acknowledgement of set-levels command.")
+
+      (println "Received unrecognized action:" action))))
 
 (defn on-close
   "Called when the web socket is closed."
@@ -78,7 +106,7 @@
 
 (defn on-error
   "Called when there is an error."
-  [{:keys [channel error]}]
+  [{:keys [_channel error]}]
   (log/error {:what :socket-error
               :where (str "Received web socket error: " error)})
   (swap! channel-open
@@ -140,52 +168,37 @@
           macros)))
 
 (def moving-interval
-  "How often to check the state of a blind that is believed to be
+  "How often to check the blind positions if any are believed to be
   moving, in milliseconds."
-  5000)
+  (.toMillis TimeUnit/SECONDS 4))
 
 (def stopped-interval
-  "How often to check the state of a blind that is believed to be
+  "How often to check the blind positions if none are believed to be
   moving, in milliseconds."
-  120000)
+  (.toMillis TimeUnit/SECONDS 30))
 
-(defn- stale?
-  [shade state]
-  (let [{:keys [moving? last-update]} (get state (:id shade))]
-    (or (not last-update)
-        (> (- (System/currentTimeMillis) last-update)
-           (if moving? moving-interval stopped-interval)))))
+(def battery-update-interval
+  "How often to check the battery levels, in milliseconds."
+  (.toMillis TimeUnit/DAYS 1))
 
-(defn- shades-to-update
-  "Checks the latest shade state information and returns a tuple
-  containing a list of the shade IDs which need to be updated now, and
-  how long we should wait for the next update (if any shades are
-  believed to be moving, that will be shorter)."
+(defn- request-position-update
+  "Requests the current blind positions on a separate thread if the web
+  socket is open. Also, if it's been long enough since we last checked
+  the battery levels, check them again."
   []
-  (let [all-shades (db/list-shades)
-        state      (:shades @shade-state)
-        result     (reduce (fn [acc shade]
-                             (cond-> acc
-                               (stale? shade state)
-                               (update :ids conj (:controller_id shade))
+  (future
+    (when-let [ch @channel-open]
+      (ws/send (str {:action :positions}) ch)
+      (let [last-update (:last-battery-update @shade-state)]
+        (when (or (not last-update)
+                  (> (- (System/currentTimeMillis) last-update) battery-update-interval))
+          (ws/send (str {:action :batteries}) ch))))))
 
-                               (get-in state [(:id shade) :moving?])
-                               (assoc :any-moving? true)))
-                           {:ids        []
-                            :any-moving? false}
-                           all-shades)]
-    [(:ids result) (if (:any-moving? result) moving-interval stopped-interval)]))
-
-(defn request-updates
-  "Given a list of shade IDs needing updates, requests them on a
-  separate thread."
-  [to-update]
-  (when (seq to-update)
-    (future
-      (when-let [ch @channel-open]
-        (ws/send (str {:action :status
-                       :blinds to-update})
-                 ch)))))
+(defn- next-wait
+  "Calculate how long to wait for our next blind update; it will be much
+  shorter if any blinds were last known to be moving."
+  []
+  (if (some :moving? (vals (:shades @shade-state))) moving-interval stopped-interval))
 
 (defn start-state-updater
   "Starts the async loop which keeps tabs on the current shade
@@ -199,19 +212,11 @@
                (async/go
                  (try
                    (async/<! (async/timeout 200))  ; Wait for atom to be initialized.
-                   (loop [[to-update next-wait] (async/<! (async/thread (shades-to-update)))
-                          timeout-chan (async/timeout next-wait)
-                          _ (println "to-update:" to-update next-wait)
-                          _ (request-updates to-update)
-                          [_v c] (async/alts! [shutdown-chan tickle-chan timeout-chan] {:priority true})]
+                   (request-position-update)
+                   (loop [[_v c] (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true})]
                      (when (not= c shutdown-chan)
-                       (let [[to-update next-wait] (async/<! (async/thread (shades-to-update)))
-                             timeout-chan (async/timeout next-wait)]
-                         (recur [to-update next-wait]
-                                timeout-chan
-                                (println "to-update:" to-update next-wait)
-                                (request-updates to-update)
-                                (async/alts! [shutdown-chan tickle-chan timeout-chan] {:priority true})))))
+                       (request-position-update)
+                       (recur (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true}))))
                    (catch Throwable t
                      (log/error t "Problem in state-updater go loop")))
                  (reset! shade-state {}))  ; We have been shut down.

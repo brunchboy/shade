@@ -50,12 +50,14 @@ async def login_to_director() -> None:
 asyncio.run(login_to_director())
 
 kw_action = edn_format.Keyword("action")
+kw_batteries = edn_format.Keyword("batteries")
 kw_blinds = edn_format.Keyword("blinds")
 kw_details = edn_format.Keyword("details")
 kw_error = edn_format.Keyword("error")
 kw_id = edn_format.Keyword("id")
 kw_level = edn_format.Keyword("level")
 kw_message = edn_format.Keyword("message")
+kw_positions = edn_format.Keyword("positions")
 kw_set_levels = edn_format.Keyword("set-levels")
 kw_status = edn_format.Keyword("status")
 kw_stopped = edn_format.Keyword("stopped")
@@ -83,14 +85,39 @@ async def report_status(ws, blinds):
         except BadToken:
             print("Updating Control4 director token")
             await login_to_director()
-            result[id] = { kw_level: asyncio.run(blind.getLevel()), kw_stopped: asyncio.run(blind.getStopped())}
+            result[id] = { kw_level: await blind.getLevel(), kw_stopped: await blind.getStopped()}
     ws.send(edn_format.dumps({kw_action: kw_status, kw_blinds: result}))
+
+async def report_positions(ws):
+    result = {}
+    try:
+        result = await director.getAllItemVariableValue("Level,Target+Level,Stopped")
+    except BadToken:
+            print("Updating Control4 director token")
+            await login_to_director()
+            result = await director.getAllItemVariableValue("Level,Target+Level,Stopped")
+    ws.send(edn_format.dumps({kw_action: kw_positions, kw_positions: result}))
+
+async def report_batteries(ws):
+    result = {}
+    try:
+        result = await director.getAllItemVariableValue("Battery+Level")
+    except BadToken:
+            print("Updating Control4 director token")
+            await login_to_director()
+            result = await director.getAllItemVariableValue("Battery+Level")
+    ws.send(edn_format.dumps({kw_action: kw_batteries, kw_batteries: result}))
+
 
 def on_message(ws, message):
     parsed = edn_format.loads(message)
     action = parsed.get(kw_action)
 
-    if action == kw_status:
+    if action == kw_positions:
+        asyncio.run(report_positions(ws))
+    elif action == kw_batteries:
+        asyncio.run(report_batteries(ws))
+    elif action == kw_status:
         asyncio.run(report_status(ws, parsed.get(kw_blinds)))
     elif action == kw_set_levels:
         asyncio.run(set_levels(ws, parsed.get(kw_blinds)))
@@ -109,7 +136,7 @@ def on_open(ws):
     print("Opened connection")
 
 if __name__ == "__main__":
-    websocket.enableTrace(True)
+    # websocket.enableTrace(True)
     token = keyring.get_password("shade.deepsymmetry.org", "x-shade-token")
     # For local development/testing, set SHADE_WS_URL to "ws://localhost:3000/ws"
     ws_url = os.environ.get("SHADE_WS_URL", "wss://shade.deepsymmetry.org/ws")

@@ -3,6 +3,7 @@ CREATE TABLE shades
  name VARCHAR(60) not null,
  kind VARCHAR(20),
  controller_id bigint not null,
+ parent_id bigint not null,
  room uuid not null
 )
 
