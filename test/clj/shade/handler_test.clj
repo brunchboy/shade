@@ -2,6 +2,8 @@
   (:require
     [clojure.test :refer :all]
     [ring.mock.request :refer :all]
+    [shade.config]
+    [shade.db.core]
     [shade.handler :refer :all]
     [shade.middleware.formats :as formats]
     [muuntaja.core :as m]
@@ -14,13 +16,14 @@
   :once
   (fn [f]
     (mount/start #'shade.config/env
-                 #'shade.handler/app-routes)
+                 #'shade.handler/app-routes
+                 #'shade.db.core/*db*)
     (f)))
 
 (deftest test-app
   (testing "main route"
     (let [response ((app) (request :get "/"))]
-      (is (= 200 (:status response)))))
+      (is (= 302 (:status response)))))
 
   (testing "not-found route"
     (let [response ((app) (request :get "/invalid"))]
