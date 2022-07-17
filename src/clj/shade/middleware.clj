@@ -9,15 +9,13 @@
     [shade.config :refer [env]]
     [shade.db.core :as db]
     [ring.middleware.flash :refer [wrap-flash]]
-    [ring.adapter.undertow.middleware.session :refer [wrap-session]]
     [ring.middleware.defaults :refer [site-defaults wrap-defaults]]
     [ring.util.response :refer [redirect]]
     [jdbc-ring-session.core :refer [jdbc-store]]
     [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
     [buddy.auth.accessrules :refer [wrap-access-rules]]
     [buddy.auth :refer [authenticated?]]
-    [buddy.auth.backends.session :refer [session-backend]])
-  )
+    [buddy.auth.backends.session :refer [session-backend]]))
 
 (defn wrap-internal-error [handler]
   (fn [req]
@@ -61,6 +59,8 @@
 (def rules
   "The access rules which control user access to routes."
   [{:uri     "/" ; Need to be logged in to access the home page.
+    :handler authenticated?}
+   {:uri     "/profile" ; Need to be logged in to access the profile page.
     :handler authenticated?}
    {:uri     "/run/*" ; Need to be logged in to run macros
     :handler authenticated?}
