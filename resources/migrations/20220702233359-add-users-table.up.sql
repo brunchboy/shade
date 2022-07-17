@@ -7,7 +7,7 @@ CREATE TABLE users
  name VARCHAR(60) NOT NULL,
  email VARCHAR(100) NOT NULL,
  admin BOOLEAN NOT NULL DEFAULT false,
- last_login TIMESTAMP,
+ last_login TIMESTAMP WITH TIMEZONE,
  is_active BOOLEAN,
  pass VARCHAR(300));
 

@@ -32,9 +32,9 @@
 (extend-protocol next.jdbc.result-set/ReadableColumn
   java.sql.Timestamp
   (read-column-by-label [^java.sql.Timestamp v _]
-    (.toLocalDateTime v))
+    (.toInstant v))
   (read-column-by-index [^java.sql.Timestamp v _2 _3]
-    (.toLocalDateTime v))
+    (.toInstant v))
   java.sql.Date
   (read-column-by-label [^java.sql.Date v _]
     (.toLocalDate v))
