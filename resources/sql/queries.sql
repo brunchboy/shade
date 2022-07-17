@@ -131,7 +131,7 @@ SELECT m.*, count(s)
 
 -- :name get-macro-entries :? :*
 -- :doc retrieves the entries available to the specified user for the macro with the specified id
-SELECT me.*, s.controller_id, r.id as room, r.name as room_name
+SELECT me.*, s.controller_id, s.close_min, s.open_max, r.id as room, r.name as room_name
   FROM macro_entries me
   INNER JOIN shades s ON me.shade = s.id
   INNER JOIN rooms r ON s.room = r.id

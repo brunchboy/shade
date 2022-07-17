@@ -132,6 +132,14 @@
 (defn websocket-routes []
   [["/ws" handler]])
 
+(defn normalize-macro-level
+  "Translates a macro shade level, which ranges from 0 to 100, to the
+  potentially more limited range required by the calibration
+  correction associated with the shade, if any."
+  [{:keys [level close_min open_max]}]
+  (let [range (- open_max close_min)]
+    (+ close_min (Math/round (double (* range (/ level 100)))))))
+
 (defn run-macro
   "Loads the entries available to the specified user of the specified
   macro, and sends instructions to configure the blinds accordingly."
@@ -142,7 +150,7 @@
       (ws/send (str {:action :set-levels
                      :blinds (mapv (fn [entry]
                                      {:id    (:controller_id entry)
-                                      :level (:level entry)})
+                                      :level (normalize-macro-level entry)})
                                    entries)})
                ch)
       (doseq [entry entries]
@@ -164,7 +172,8 @@
     (mapv (fn [macro]
             (let [entries (db/get-macro-entries {:macro (:id macro)
                                                  :user  user-id})]
-              (assoc macro :in-effect (every? #(= (:level %) (get-in state [(:shade %) :level])) entries))))
+              (assoc macro :in-effect (every? #(= (normalize-macro-level %)
+                                                  (get-in state [(:shade %) :level])) entries))))
           macros)))
 
 (def moving-interval
