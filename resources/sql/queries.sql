@@ -160,3 +160,14 @@ UPDATE macros
 -- :doc deletes a macro entry record given the id
 DELETE FROM macro_entriess
  WHERE id = :id
+
+-- :name get-event :? :1
+SELECT * from events
+ WHERE name = :name
+   AND related_id = :related_id
+
+-- :name update-event :! :n
+INSERT INTO events (name, related_id, happened, details)
+VALUES (:name, :related_id, :happened, :details)
+ON CONFLICT (name, related_id) DO UPDATE
+  SET happened = EXCLUDED.happened, details = EXCLUDED.details;

@@ -18,6 +18,7 @@
              *db*))
   :stop (conman/disconnect! *db*))
 
+(declare get-event update-event)
 (conman/bind-connection *db* "sql/queries.sql")
 
 (defn pgobj->clj [^org.postgresql.util.PGobject pgobj]
@@ -74,3 +75,27 @@
                            (apply str (rest type-name)))]
         (.setObject stmt idx (.createArrayOf conn elem-type (to-array v)))
         (.setObject stmt idx (clj->jsonb-pgobj v))))))
+
+(def no-related-id
+  "A special marker UUID we use when we want to save events with no
+  related row, since the primary key can't accept actual null values
+  for that column."
+  #uuid "d237f18c-8a82-41e6-a4b3-19de2d1ca743")
+
+(defn save-event
+  "A convenience method for updating events, which translates a `nil`
+  `related_id` value to our special marker UUID. Also makes sure all
+  keys expected by the query are present even if they were omitted by
+  our caller. Defaults the `happened` timestamp to now."
+  [{:keys [name related-id happened details]}]
+  (update-event {:name       name
+                 :related_id (or related-id no-related-id)
+                 :happened   (or happened (java.time.Instant/now))
+                 :details    details}))
+
+(defn find-event
+  "A convenience method for looking up events, translating the lack of a
+  `related_id` value to our special marker UUID."
+  [{:keys [name related-id]}]
+  (get-event {:name name
+              :related_id (or related-id no-related-id)}))
