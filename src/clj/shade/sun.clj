@@ -106,8 +106,8 @@
 (defn declination
   "The other value which determines the sun's position within the
   celestial sphere, in radians. (Declination is relative to the north
-  and south celestial poles, with +90 degrees declination at the north
-  pole, and -90 degrees declination at the south pole.)"
+  and south celestial poles, with +90° declination at the north pole,
+  and -90° declination at the south pole.)"
   [ecliptic-longitude obliquity]
   (Math/asin (* (Math/sin obliquity) (Math/sin ecliptic-longitude))))
 
@@ -187,6 +187,23 @@
      :azimuth               (radians-to-degrees sun-azimuth)
      :refraction-correction refraction}))
 
+(defn entering-windows?
+  "Checks whether a given sun `position` means that windows facing the
+  specified `azimuth` are receiving sunlight. Returns truthy when the
+  sun azimuth is within +/- 85° of the specified azimuth, and has an
+  elevation between 85° and `horizon`, which defaults to 5° to catch
+  sunset views when the sun is not throwing much heat, but can be
+  higher if (as in our case) there is a building blocking the sun in
+  one direction."
+  ([position azimuth]
+   (entering-windows? position azimuth 5.0))
+  ([position azimuth horizon]
+   ;; First, normalize azimuths as if the windows are facing 90°, to
+   ;; make later math easier.
+   (let [offset           (- azimuth 90.0)
+         relative-azimuth (normalize-to-range (- (:azimuth position) offset) 0.0 360.0)]
+     (and (<= 5.0 relative-azimuth 175.0)
+          (<= horizon (:elevation position) 85.0)))))
 
 
 ;; This last function is not actually used, but it is included for

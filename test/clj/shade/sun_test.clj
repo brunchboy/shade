@@ -89,8 +89,6 @@
             :refraction-correction 0.04123836107091465}
            (sun/position sample-time sample-latitude sample-longitude))))
 
-;; Temporary stuff to be removed once the database holds shade bank definitions for sun control.
-
 (def latitude
   "The latitude of the Deep Symmetry headquarters."
   (sun/decimal-degrees 43 4 32))
@@ -98,6 +96,45 @@
 (def longitude
   "The longitude of the Deep Symmetry headquarters."
   (- (sun/decimal-degrees 89 23 10)))
+
+(def dayton-azimuth
+  "The azimuth of our windows facing Dayton Street"
+  326)
+
+(def carroll-azimuth
+  "The azimuth of our windows facing Carroll Street"
+  236)
+
+(defn- enter-test
+  "Run entering-windows? function for windows at a particular azimuth,
+  tweaking desired time values"
+  [azimuth {:keys [year month day hour minute horizon] :or {year    2022
+                                                            month   7
+                                                            day     17
+                                                            hour    15
+                                                            minute  49
+                                                            horizon 5}}]
+  (sun/entering-windows? (sun/position (ZonedDateTime/of year month day hour minute 0 0 (ZoneId/of "America/Chicago"))
+                                       latitude longitude)
+                         azimuth horizon))
+
+(t/deftest test-entering-windows
+  (t/testing "entering-windows?"
+    (t/is (enter-test dayton-azimuth {}))
+    (t/is (enter-test carroll-azimuth {}))
+    (t/is (not (enter-test 13 {})))
+    (t/is (not (enter-test dayton-azimuth {:hour 12})))
+    (t/is (not (enter-test dayton-azimuth {:hour 14})))
+    (t/is (not (enter-test carroll-azimuth {:hour 11})))
+    (t/is (not (enter-test carroll-azimuth {:hour 11
+                                            :minute 30})))
+    (t/is (enter-test carroll-azimuth {:hour 14}))
+    (t/is (enter-test carroll-azimuth {:hour 19}))
+    (t/is (enter-test dayton-azimuth {:hour 19}))
+    (t/is (not (enter-test dayton-azimuth {:hour 19 :horizon 19})))))
+
+
+;; Temporary stuff to be removed once the database holds shade bank definitions for sun control.
 
 (defn day
   "Prints positions throughout the day for sanity checking."
