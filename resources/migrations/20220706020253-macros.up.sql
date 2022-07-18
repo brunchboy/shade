@@ -1,6 +1,6 @@
-CREATE TABLE macros
-(id uuid PRIMARY KEY,
- name VARCHAR(100) NOT NULL
+CREATE TABLE macros (
+  id uuid PRIMARY KEY,
+  name VARCHAR(100) NOT NULL
 )
 
 --;;
@@ -9,11 +9,11 @@ CREATE UNIQUE INDEX "macros_name_idx" ON macros(name);
 
 --;;
 
-CREATE TABLE macro_entries
-(id uuid PRIMARY KEY,
- macro uuid NOT NULL,
- shade uuid NOT NULL,
- level INTEGER NOT NULL
+CREATE TABLE macro_entries (
+  id uuid PRIMARY KEY,
+  macro uuid NOT NULL,
+  shade uuid NOT NULL,
+  level INTEGER NOT NULL
 )
 
 --;;

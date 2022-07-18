@@ -116,7 +116,8 @@
                                                             horizon 5}}]
   (sun/entering-windows? (sun/position (ZonedDateTime/of year month day hour minute 0 0 (ZoneId/of "America/Chicago"))
                                        latitude longitude)
-                         azimuth horizon))
+                         {:azimuth azimuth
+                          :horizon horizon}))
 
 (t/deftest test-entering-windows
   (t/testing "entering-windows?"

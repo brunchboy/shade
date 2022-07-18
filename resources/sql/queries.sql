@@ -136,6 +136,12 @@ SELECT m.*, count(s)
  GROUP BY m.id
  ORDER BY m.name
 
+-- :name delete-macro! :! :n
+-- :doc deletes a macro record given the id
+DELETE FROM macros
+ WHERE id = :id
+
+
 -- :name get-macro-entries :? :*
 -- :doc retrieves the entries available to the specified user for the macro with the specified id
 SELECT me.*, s.controller_id, s.close_min, s.open_max, r.id as room, r.name as room_name
@@ -145,12 +151,6 @@ SELECT me.*, s.controller_id, s.close_min, s.open_max, r.id as room, r.name as r
   INNER JOIN users_rooms ur on ur.room = r.id
  WHERE me.macro = :macro
    AND ur.user = :user
-
--- :name delete-macro! :! :n
--- :doc deletes a macro record given the id
-DELETE FROM macros
- WHERE id = :id
-
 
 -- :name create-macro-entry! :! :n
 -- :doc creates a new macro entry record
@@ -168,6 +168,7 @@ UPDATE macros
 DELETE FROM macro_entriess
  WHERE id = :id
 
+
 -- :name get-event :? :1
 SELECT * from events
  WHERE name = :name
@@ -178,3 +179,48 @@ INSERT INTO events (name, related_id, happened, details)
 VALUES (:name, :related_id, now(), :details)
 ON CONFLICT (name, related_id) DO UPDATE
   SET happened = EXCLUDED.happened, details = EXCLUDED.details;
+
+
+-- :name create-sunblock-group! :! :n
+-- :doc creates a new sunblock group record
+INSERT INTO sunblock_groups (id, name, azimuth, horizon, ceiling, "left", "right")
+VALUES (gen_random_uuid(), :name, :azimuth, :horizon, :ceiling, :left, :right)
+
+-- :name update-sunblock-group! :! :n
+-- :doc updates an existing sunblock group record
+UPDATE macros
+   SET name = :name,
+       azimuth = :azimuth,
+       horizon = :horizon,
+       ceiling = :ceiling,
+       "left" = :left,
+       "right" = :right
+ WHERE id = :id
+
+-- :name list-sunblock-groups :? :*
+-- :doc retrieves all sunblock group records
+SELECT * FROM sunblock_groups
+ ORDER BY name
+
+-- :name delete-sunblock-group! :! :n
+-- :doc deletes a sunblock group record given the id
+DELETE FROM sunblock_groups
+ WHERE id = :id
+
+
+-- :name get-sunblock-group-entries :? :*
+-- :doc retrieves the entries which belong to the specified sunblock group
+SELECT sbe.*, s.controller_id, s.close_min, s.open_max
+  FROM sunblock_group_entries sbe
+  INNER JOIN shades s on sbe.shade = s.id
+ WHERE sbe.sunblock_group = :sunblock_group
+
+-- :name create-sunblock-group-entry! :! :n
+-- :doc creates a new sunblock group entry record
+INSERT INTO sunblock_group_entries (id, sunblock_group, shade)
+VALUES (gen_random_uuid(), :sunblock_group, :shade)
+
+-- :name delete-sunblock-group-entry! :! :n
+-- :doc deletes a sunbloc _group entry record given the id
+DELETE FROM sunblock_group_entriess
+ WHERE id = :id

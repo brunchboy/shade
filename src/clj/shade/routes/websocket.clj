@@ -9,7 +9,7 @@
             [clojure.tools.logging :as log]
             [mount.core :refer [defstate]])
   (:import (java.util.concurrent TimeUnit)
-           (java.time LocalDate LocalTime ZonedDateTime ZoneId)))
+           (java.time LocalDate ZonedDateTime ZoneId)))
 
 (def channel-open
   "Keeps track of the channel associated with the open web socket."
@@ -247,14 +247,53 @@
         (db/save-event {:name "sunrise-protect"})
         (tickle-state-updater)))))
 
+(defn sunblock-groups
+  "Check to see if the sun has first entered any sunblock groups today,
+  in which case those blinds should be closed, or first exited any
+  which were entered earlier today."
+  [sun-position]
+  (doseq [group (db/list-sunblock-groups)]
+    (let [last-opened (db/find-event {:name "sunblock-group-entered" :related-id (:id group)})
+          ch       @channel-open
+          shining? (sun/entering-windows? sun-position group) ]
+      (if-not (and last-opened (same-day? last-opened))
+        ;; This group has not yet run today, time to close?
+        (when (and shining?   ; Sun is shining through this group.
+                   ch)        ; And we have a connection to the blind interface.
+          (log/info "Closing blinds for sunblock group" (:name group))
+          (ws/send (str {:action :set-levels
+                         :blinds (mapv (fn [shade]
+                                         {:id    (:controller_id shade)
+                                          :level (:close_min shade)})
+                                       (db/get-sunblock-group-entries {:sunblock_group (:id group)}))})
+                   ch)
+          (db/save-event {:name "sunblock-group-entered" :related-id (:id group)})
+          (tickle-state-updater))
+
+        ;; This group has run today, is it time to open back up?
+        (let [last-closed (db/find-event {:name "sunblock-group-exited" :related-id (:id group)})]
+          (when (and (not shining?)  ; Sun is no longer shining through this group.
+                     (not (and last-closed (same-day? last-closed)))  ; We have not yet closed it.
+                     ch)             ; And we have a connection to the blind interface.
+            (log/info "Reopening blinds for sunblock group" (:name group))
+          (ws/send (str {:action :set-levels
+                         :blinds (mapv (fn [shade]
+                                         {:id    (:controller_id shade)
+                                          :level (:open_max shade)})
+                                       (db/get-sunblock-group-entries {:sunblock_group (:id group)}))})
+                   ch)
+          (db/save-event {:name "sunblock-group-exited" :related-id (:id group)})))))))
+
 (defn run-needed-events
   "Determine which events need running now, and run them."
   []
-  (let [sun-position (sun/position (ZonedDateTime/now) latitude longitude)]
-    (try
-      (sunrise-protect sun-position)
-      (catch Throwable t
-        (log/error t "Problem in run-needed-events")))))
+  (future
+    (let [sun-position (sun/position (ZonedDateTime/now) latitude longitude)]
+      (try
+        (sunrise-protect sun-position)
+        (sunblock-groups sun-position)
+        (catch Throwable t
+          (log/error t "Problem in run-needed-events"))))))
 
 (defn- next-wait
   "Calculate how long to wait for our next blind update; it will be much
@@ -278,7 +317,7 @@
                    (loop [[_v c] (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true})]
                      (when (not= c shutdown-chan)
                        (request-position-update)
-                       (async/<! (async/thread (run-needed-events)))
+                       (run-needed-events)
                        (recur (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true}))))
                    (catch Throwable t
                      (log/error t "Problem in state-updater go loop")))

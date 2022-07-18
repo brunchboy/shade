@@ -189,21 +189,29 @@
 
 (defn entering-windows?
   "Checks whether a given sun `position` means that windows facing the
-  specified `azimuth` are receiving sunlight. Returns truthy when the
-  sun azimuth is within +/- 85° of the specified azimuth, and has an
-  elevation between 85° and `horizon`, which defaults to 5° to catch
-  sunset views when the sun is not throwing much heat, but can be
-  higher if (as in our case) there is a building blocking the sun in
-  one direction."
-  ([position azimuth]
-   (entering-windows? position azimuth 5.0))
-  ([position azimuth horizon]
-   ;; First, normalize azimuths as if the windows are facing 90°, to
-   ;; make later math easier.
-   (let [offset           (- azimuth 90.0)
-         relative-azimuth (normalize-to-range (- (:azimuth position) offset) 0.0 360.0)]
-     (and (<= 5.0 relative-azimuth 175.0)
-          (<= horizon (:elevation position) 85.0)))))
+  specified `:azimuth` are receiving sunlight. To simplify
+  calculations, the sun's azimuth is normalized based on the window
+  azimuth, so that if the sun is shining directly from where the
+  windows are facing, the normalized azimuth is 90°. Returns truthy
+  when the sun elevation is between `:horizon` (which defaults to 5.0,
+  to catch sunset views when the sun is not throwing much heat) and
+  `:ceiling` (which defaults to 85.0), and its normalized azimuth is
+  between `:left` (which defaults to 5.0) and `:right` (which defaults
+  to 175.0).
+
+  Any of the boundaries can be adjusted if (as in our case) there are
+  buildings or architectural features blocking the sun in some
+  direction."
+  [position {:keys [azimuth horizon ceiling left right] :or {horizon 5.0
+                                                             ceiling 85.0
+                                                             left    5.0
+                                                             right   175.0}}]
+  ;; First, normalize azimuths as if the windows are facing 90°, to
+  ;; make later math easier.
+  (let [offset           (- azimuth 90.0)
+        relative-azimuth (normalize-to-range (- (:azimuth position) offset) 0.0 360.0)]
+    (and (<= left relative-azimuth right)
+         (<= horizon (:elevation position) ceiling))))
 
 
 ;; This last function is not actually used, but it is included for
