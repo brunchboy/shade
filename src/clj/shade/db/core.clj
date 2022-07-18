@@ -97,5 +97,9 @@
   "A convenience method for looking up events, translating the lack of a
   `related_id` value to our special marker UUID."
   [{:keys [name related-id]}]
-  (get-event {:name name
-              :related_id (or related-id no-related-id)}))
+  (let [raw (get-event {:name name
+                        :related_id (or related-id no-related-id)})]
+    (when raw
+      (-> raw
+          (assoc :related-id related-id)
+          (dissoc :related_id)))))
