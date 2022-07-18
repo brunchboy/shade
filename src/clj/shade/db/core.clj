@@ -86,11 +86,10 @@
   "A convenience method for updating events, which translates a `nil`
   `related_id` value to our special marker UUID. Also makes sure all
   keys expected by the query are present even if they were omitted by
-  our caller. Defaults the `happened` timestamp to now."
-  [{:keys [name related-id happened details]}]
+  our caller. Sets the `happened` timestamp to now."
+  [{:keys [name related-id details]}]
   (update-event {:name       name
                  :related_id (or related-id no-related-id)
-                 :happened   (or happened (java.time.Instant/now))
                  :details    details}))
 
 (defn find-event

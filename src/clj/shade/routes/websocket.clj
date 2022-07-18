@@ -2,12 +2,14 @@
   "Handles communication with the web socket that relayes queries and
   commands to the blind controller running on our home network."
   (:require [shade.db.core :as db]
+            [shade.sun :as sun]
             [ring.adapter.undertow.websocket :as ws]
             [clojure.core.async :as async]
             [clojure.edn :as edn]
             [clojure.tools.logging :as log]
             [mount.core :refer [defstate]])
-  (:import (java.util.concurrent TimeUnit)))
+  (:import (java.util.concurrent TimeUnit)
+           (java.time LocalDate LocalTime ZonedDateTime ZoneId)))
 
 (def channel-open
   "Keeps track of the channel associated with the open web socket."
@@ -196,12 +198,63 @@
   the battery levels, check them again."
   []
   (future
-    (when-let [ch @channel-open]
-      (ws/send (str {:action :positions}) ch)
-      (let [last-update (:last-battery-update @shade-state)]
-        (when (or (not last-update)
-                  (> (- (System/currentTimeMillis) last-update) battery-update-interval))
-          (ws/send (str {:action :batteries}) ch))))))
+    (try
+      (when-let [ch @channel-open]
+        (ws/send (str {:action :positions}) ch)
+        (let [last-update (:last-battery-update @shade-state)]
+          (when (or (not last-update)
+                    (> (- (System/currentTimeMillis) last-update) battery-update-interval))
+            (ws/send (str {:action :batteries}) ch))))
+      (catch Throwable t
+        (log/error t "Problem requesting blind information.")))))
+
+;; TODO: These next three values should come from config/environment variables.
+(def latitude
+  "The latitude of the Deep Symmetry headquarters."
+  (sun/decimal-degrees 43 4 32))
+
+(def longitude
+  "The longitude of the Deep Symmetry headquarters."
+  (- (sun/decimal-degrees 89 23 10)))
+
+(def local-time-zone-id
+  "The time zone of the Deep Symmetry headquarters."
+  (ZoneId/of "America/Chicago"))
+
+(defn same-day?
+  "Checks whether the specified event last ran today."
+  [event]
+  (let [event-date (.toLocalDate (.withZoneSameInstant (.atZone (:happened event) (ZoneId/of "UTC"))
+                                                       local-time-zone-id))]
+    (= event-date (LocalDate/now))))
+
+(defn sunrise-protect
+  "If we have just reached astronomical dawn, close the blackout
+  curtains in all rooms marked for sunrise protection."
+  [sun-position]
+  (let [last-run (db/find-event {:name "sunrise-protect"})
+        ch       @channel-open]
+    (when-not (and last-run (same-day? last-run))      ; Has not already run today.
+      (when (and (> (:elevation sun-position) -18.0)    ; It's past astronomical dawn.
+                 ch)  ; And we have a connection to the blind interface.
+        (log/info "Running sunrise-protect.")
+        (ws/send (str {:action :set-levels
+                       :blinds (mapv (fn [shade]
+                                       {:id    (:controller_id shade)
+                                        :level (:close_min shade)})
+                                     (db/list-shades-for-sunrise-protect))})
+                 ch)
+        (db/save-event {:name "sunrise-protect"})
+        (tickle-state-updater)))))
+
+(defn run-needed-events
+  "Determine which events need running now, and run them."
+  []
+  (let [sun-position (sun/position (ZonedDateTime/now) latitude longitude)]
+    (try
+      (sunrise-protect sun-position)
+      (catch Throwable t
+        (log/error t "Problem in run-needed-events")))))
 
 (defn- next-wait
   "Calculate how long to wait for our next blind update; it will be much
@@ -225,6 +278,7 @@
                    (loop [[_v c] (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true})]
                      (when (not= c shutdown-chan)
                        (request-position-update)
+                       (async/<! (async/thread (run-needed-events)))
                        (recur (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true}))))
                    (catch Throwable t
                      (log/error t "Problem in state-updater go loop")))

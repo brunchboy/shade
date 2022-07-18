@@ -41,13 +41,14 @@ DELETE FROM users
 
 -- :name create-room! :! :n
 -- :doc creates a new room record
-INSERT INTO rooms (id, name)
-VALUES (gen_random_uuid(), :name)
+INSERT INTO rooms (id, name sunrise_protect)
+VALUES (gen_random_uuid(), :name, :sunrise_protect)
 
 -- :name update-room! :! :n
 -- :doc updates an existing room record
 UPDATE rooms
-   SET name = :name
+   SET name = :name,
+       sunrise_protect = :sunrise_protect
  WHERE id = :id
 
 -- :name list-rooms :? :*
@@ -84,6 +85,12 @@ SELECT * FROM shades
 -- :doc retrieves all shades in a given room
 SELECT * FROM shades
  WHERE room = :room
+
+-- :name list-shades-for-sunrise-protect :? ?*
+select shades.* from shades
+ inner join rooms on shades.room = rooms.id
+   and rooms.sunrise_protect = 'true'
+ where shades.kind = 'blackout';
 
 -- :name get-shade :? :1
 -- :doc retrieves a shade record given the id
@@ -168,6 +175,6 @@ SELECT * from events
 
 -- :name update-event :! :n
 INSERT INTO events (name, related_id, happened, details)
-VALUES (:name, :related_id, :happened, :details)
+VALUES (:name, :related_id, now(), :details)
 ON CONFLICT (name, related_id) DO UPDATE
   SET happened = EXCLUDED.happened, details = EXCLUDED.details;
