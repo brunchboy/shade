@@ -1,7 +1,8 @@
 (ns shade.routes.websocket
   "Handles communication with the web socket that relayes queries and
   commands to the blind controller running on our home network."
-  (:require [shade.db.core :as db]
+  (:require [shade.config :refer [env]]
+            [shade.db.core :as db]
             [shade.sun :as sun]
             [ring.adapter.undertow.websocket :as ws]
             [clojure.core.async :as async]
@@ -229,26 +230,14 @@
       (catch Throwable t
         (log/error t "Problem requesting blind information.")))))
 
-;; TODO: These next three values should come from config/environment variables.
-(def latitude
-  "The latitude of the Deep Symmetry headquarters."
-  (sun/decimal-degrees 43 4 32))
-
-(def longitude
-  "The longitude of the Deep Symmetry headquarters."
-  (- (sun/decimal-degrees 89 23 10)))
-
-(def local-time-zone-id
-  "The time zone of the Deep Symmetry headquarters."
-  (ZoneId/of "America/Chicago"))
-
 (defn same-day?
   "Checks whether the specified event last ran today (in the time zone of the blinds)."
   [event]
-  (let [event-date (.toLocalDate (.withZoneSameInstant (.atZone (:happened event) (ZoneId/of "UTC"))
-                                                       local-time-zone-id))]
+  (let [local-timezone (ZoneId/of (get-in env [:location :timezone]))
+        event-date     (.toLocalDate (.withZoneSameInstant (.atZone (:happened event) (ZoneId/of "UTC"))
+                                                           local-timezone))]
     (= event-date (.toLocalDate  (.withZoneSameInstant (.atZone (Instant/now) (ZoneId/systemDefault))
-                                                       local-time-zone-id)))))
+                                                       local-timezone)))))
 
 (defn sunrise-protect
   "If we have just reached astronomical dawn, close the blackout
@@ -311,7 +300,8 @@
   []
   (future
     (when-not (throttled? :run-needed-events 20000)
-      (let [sun-position (sun/position (ZonedDateTime/now) latitude longitude)]
+      (let [sun-position (sun/position (ZonedDateTime/now)
+                                       (get-in env [:location :latitude]) (get-in env [:location :longitude]))]
         (try
           (sunrise-protect sun-position)
           (sunblock-groups sun-position)
