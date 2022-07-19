@@ -9,7 +9,7 @@
             [clojure.tools.logging :as log]
             [mount.core :refer [defstate]])
   (:import (java.util.concurrent TimeUnit)
-           (java.time LocalDate ZonedDateTime ZoneId)))
+           (java.time Instant ZonedDateTime ZoneId)))
 
 (def channel-open
   "Keeps track of the channel associated with the open web socket."
@@ -222,11 +222,12 @@
   (ZoneId/of "America/Chicago"))
 
 (defn same-day?
-  "Checks whether the specified event last ran today."
+  "Checks whether the specified event last ran today (in the time zone of the blinds)."
   [event]
   (let [event-date (.toLocalDate (.withZoneSameInstant (.atZone (:happened event) (ZoneId/of "UTC"))
                                                        local-time-zone-id))]
-    (= event-date (LocalDate/now))))
+    (= event-date (.toLocalDate  (.withZoneSameInstant (.atZone (Instant/now) (ZoneId/systemDefault))
+                                                       local-time-zone-id)))))
 
 (defn sunrise-protect
   "If we have just reached astronomical dawn, close the blackout
