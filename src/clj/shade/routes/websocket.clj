@@ -19,6 +19,24 @@
   "Keeps track of the latest information we have about all the shades."
   (atom {}))
 
+(defn throttled?
+  "Make sure a request of a particular kind doesn't get stuttered a
+  bunch of extra times because the scheduler loop is tickled while
+  there are already requests outstanding. Returns truthy if the
+  request was throttled and should be discarded."
+  ([kind]
+   (throttled? kind 2000))
+  ([kind min-interval-ms]
+   (let [now           (System/currentTimeMillis)
+         eligible-time (+ now min-interval-ms)
+         new-state     (swap! shade-state update-in [:throttle kind]
+                          (fn [old-eligible-time]
+                            (if (or (not old-eligible-time)
+                                    (>= now old-eligible-time))
+                              eligible-time
+                              old-eligible-time)))]
+     (not= eligible-time (get-in new-state [:throttle kind])))))
+
 (defn tickle-state-updater
   "Causes the state updater to immediately check for shades that need
   updates."
@@ -29,7 +47,7 @@
 (defn on-open
   "Called when a connection to the web socket is opened."
   [{:keys [channel]}]
-  (println "Web socket opened!")
+  (log/info "Web socket opened!")
   (swap! channel-open
          (fn [old-channel]
            (when old-channel
@@ -67,7 +85,7 @@
     (case action
       :positions
       (future
-        (println "Received updated blind positions.")
+        (log/info "Received updated blind positions.")
         (doseq [[k v] (gather-director-vars (:positions message))]
           (when-let [shade (db/get-shade-by-controller-id {:id k})]
             (swap! shade-state update-in [:shades (:id shade)]
@@ -78,23 +96,23 @@
 
       :batteries
       (future
-        (println "Received updated battery levels.")
+        (log/info "Received updated battery levels.")
         (let [vars (gather-director-vars (:batteries message))]
           (doseq [shade (db/list-shades)]
                 (if-let [level (get-in vars [(:parent_id shade) "Battery Level"])]
                   (swap! shade-state assoc-in [:shades (:id shade) :battery-level] level)
-                  (println "Could not find battery level for shade with parent ID" (:parent_id shade))))
+                  (log/error "Could not find battery level for shade with parent ID" (:parent_id shade))))
               (swap! shade-state assoc :last-battery-update (System/currentTimeMillis))))
 
       :set-levels
-      (println "Received acknowledgement of set-levels command.")
+      (log/info "Received acknowledgement of set-levels command.")
 
-      (println "Received unrecognized action:" action))))
+      (log/error "Received unrecognized action:" action))))
 
 (defn on-close
   "Called when the web socket is closed."
   [{:keys [ws-channel]}]
-  (println "Web socket closed!")
+  (log/warn "Web socket closed!")
   (swap! channel-open
          (fn [old-channel]
            (when (= old-channel ws-channel)
@@ -200,11 +218,14 @@
   (future
     (try
       (when-let [ch @channel-open]
-        (ws/send (str {:action :positions}) ch)
-        (let [last-update (:last-battery-update @shade-state)]
-          (when (or (not last-update)
-                    (> (- (System/currentTimeMillis) last-update) battery-update-interval))
-            (ws/send (str {:action :batteries}) ch))))
+        (when-not (throttled? :position-update)
+          (log/info "Requesting blind position update.")
+          (ws/send (str {:action :positions}) ch)
+          (let [last-update (:last-battery-update @shade-state)]
+            (when (or (not last-update)
+                      (> (- (System/currentTimeMillis) last-update) battery-update-interval))
+              (log/info "Requesting battery level update.")
+              (ws/send (str {:action :batteries}) ch)))))
       (catch Throwable t
         (log/error t "Problem requesting blind information.")))))
 
@@ -289,12 +310,13 @@
   "Determine which events need running now, and run them."
   []
   (future
-    (let [sun-position (sun/position (ZonedDateTime/now) latitude longitude)]
-      (try
-        (sunrise-protect sun-position)
-        (sunblock-groups sun-position)
-        (catch Throwable t
-          (log/error t "Problem in run-needed-events"))))))
+    (when-not (throttled? :run-needed-events 20000)
+      (let [sun-position (sun/position (ZonedDateTime/now) latitude longitude)]
+        (try
+          (sunrise-protect sun-position)
+          (sunblock-groups sun-position)
+          (catch Throwable t
+            (log/error t "Problem in run-needed-events")))))))
 
 (defn- next-wait
   "Calculate how long to wait for our next blind update; it will be much
@@ -308,7 +330,7 @@
   []
   (swap! shade-state
          (fn [old-state]
-           (if (empty? old-state)
+           (if-not (:shutdown old-state)
              (let [shutdown-chan (async/promise-chan)
                    tickle-chan   (async/chan 1)]
                (async/go
@@ -316,7 +338,7 @@
                    (async/<! (async/timeout 200))  ; Wait for atom to be initialized.
                    (request-position-update)
                    (loop [[_v c] (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true})]
-                     (when (not= c shutdown-chan)
+                     (when (and (not= c shutdown-chan) (:shutdown @shade-state))
                        (request-position-update)
                        (run-needed-events)
                        (recur (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true}))))
