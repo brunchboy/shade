@@ -25,7 +25,7 @@
   there are already requests outstanding. Returns truthy if the
   request was throttled and should be discarded."
   ([kind]
-   (throttled? kind 2000))
+   (throttled? kind 800))
   ([kind min-interval-ms]
    (let [now           (System/currentTimeMillis)
          eligible-time (+ now min-interval-ms)
@@ -199,7 +199,7 @@
 (def moving-interval
   "How often to check the blind positions if any are believed to be
   moving, in milliseconds."
-  (.toMillis TimeUnit/SECONDS 4))
+  (.toMillis TimeUnit/SECONDS 1))
 
 (def stopped-interval
   "How often to check the blind positions if none are believed to be
