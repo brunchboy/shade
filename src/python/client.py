@@ -147,4 +147,4 @@ if __name__ == "__main__":
                                 on_error=on_error,
                                 on_close=on_close,
                                 header={"x-shade-token": token})
-    ws.run_forever(ping_interval=60, ping_timeout=90)
+    ws.run_forever(ping_interval=60, ping_timeout=30)
