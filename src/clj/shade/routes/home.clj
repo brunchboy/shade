@@ -10,6 +10,7 @@
    [buddy.auth :as auth]
    [shade.auth :as shade-auth]
    [buddy.hashers :as hashers]
+   [java-time :as jt]
    [ring.util.response :refer [redirect content-type]]
    [ring.util.http-response :as response]
    [ring.util.json-response :refer [json-response]])
@@ -49,6 +50,22 @@
     (number? timestamp)
     (localize-timestamp (.toInstant (java.util.Date. timestamp)))))
 
+(defn format-timestamp-relative
+  "Formats a timestamp as a string, describing it relative to today if
+  it falls within a week."
+  [timestamp]
+  (let [localized      (localize-timestamp timestamp)
+        local-timezone (ZoneId/of (get-in env [:location :timezone]))
+        date           (jt/local-date localized)
+        today          (.toLocalDate (.withZoneSameInstant (ZonedDateTime/now) local-timezone))
+        days           (jt/as (jt/period date today) :days)]
+    (str (case days
+           0           "Today"
+           1           "Yesterday"
+           (2 3 4 5 6) (jt/format "EEEE" date)
+           (jt/format "YYYY-MM-dd" date))
+         (jt/format " HH:mm:ss" localized))))
+
 (defn- format-events
   "Gather information about events which have been recorded for display
   on the status page."
@@ -64,7 +81,7 @@
                   (update :name {"sunblock-group-entered" "Sun Block started"
                                  "sunblock-group-exited"  "Sun Block ended"
                                  "sunrise-protect"        "Sunrise Protection"})
-                  (update :happened localize-timestamp))))
+                  (update :happened format-timestamp-relative))))
        (filter :name)))  ; Remove the ones we have no name for.
 
 (defn status-page [request]
@@ -74,8 +91,8 @@
                   :sun       (sun/position (ZonedDateTime/now)
                                      (get-in env [:location :latitude]) (get-in env [:location :longitude]))
                   :connected (some? @ws/channel-open)
-                  :blinds-update (localize-timestamp (:last-update @ws/shade-state))
-                  :battery-update (localize-timestamp (:last-battery-update @ws/shade-state))}))
+                  :blinds-update (format-timestamp-relative (:last-update @ws/shade-state))
+                  :battery-update (format-timestamp-relative (:last-battery-update @ws/shade-state))}))
 
 (defn run-macro [{:keys [path-params session]}]
   []
