@@ -1,9 +1,10 @@
 (ns shade.routes.home
   (:require
+   [shade.config :refer [env]]
    [shade.layout :as layout]
    [shade.db.core :as db]
+   [shade.sun :as sun]
    [shade.routes.websocket :as ws]
-   [clojure.java.io :as io]
    [clojure.string :as str]
    [shade.middleware :as middleware]
    [buddy.auth :as auth]
@@ -11,7 +12,8 @@
    [buddy.hashers :as hashers]
    [ring.util.response :refer [redirect content-type]]
    [ring.util.http-response :as response]
-   [ring.util.json-response :refer [json-response]]))
+   [ring.util.json-response :refer [json-response]])
+  (:import [java.time Instant ZonedDateTime ZoneId]))
 
 (defn home-page [request]
   (let [user-id (get-in request [:session :identity :id])
@@ -29,12 +31,51 @@
   (layout/render request "about.html"))
 
 (defn login-page [request]
-  (println "login" (:session request))  ; TODO: Remove
   (layout/render request "login.html"))
 
 (defn profile-page [request]
   (layout/render request "profile.html"
                  {:user (db/get-user {:id (get-in request [:session :identity :id])})}))
+
+(defn localize-timestamp
+  "Converts a timestamp from UTC to a local date and time. Accepts
+  either an Instant object or a number; if `nil` returns `nil`."
+  [timestamp]
+  (cond
+    (instance? Instant timestamp)
+    (let [local-timezone (ZoneId/of (get-in env [:location :timezone]))]
+      (.toLocalDateTime (.withZoneSameInstant (.atZone timestamp (ZoneId/of "UTC")) local-timezone)))
+
+    (number? timestamp)
+    (localize-timestamp (.toInstant (java.util.Date. timestamp)))))
+
+(defn- format-events
+  "Gather information about events which have been recorded for display
+  on the status page."
+  []
+  (->> (db/list-events)
+       (map (fn [event]
+              (-> event
+                  (assoc :related-name (case (:name event)
+                                         ("sunblock-group-entered" "sunblock-group-exited")
+                                         (:name (db/get-sunblock-group {:id (:related_id event)}))
+
+                                         nil))
+                  (update :name {"sunblock-group-entered" "Sun Block Group entered"
+                                 "sunblock-group-exited"  "Sun Block Group exited"
+                                 "sunrise-protect"        "Sunrise Protection ran"})
+                  (update :happened localize-timestamp))))
+       (filter :name)))  ; Remove the ones we have no name for.
+
+(defn status-page [request]
+  (layout/render request "status.html"
+                 {:events    (format-events)
+                  :now       (localize-timestamp (Instant/now))
+                  :sun       (sun/position (ZonedDateTime/now)
+                                     (get-in env [:location :latitude]) (get-in env [:location :longitude]))
+                  :connected (some? @ws/channel-open)
+                  :blinds-update (localize-timestamp (:last-update @ws/shade-state))
+                  :battery-update (localize-timestamp (:last-battery-update @ws/shade-state))}))
 
 (defn run-macro [{:keys [path-params session]}]
   []
@@ -148,5 +189,6 @@
    ["/logout" {:get logout}]
    ["/profile" {:get  profile-page
                 :post profile-update}]
+   ["/status" {:get status-page}]
    ["/run/:id" {:get run-macro}]
    ["/macro-states" {:get macro-states}]])

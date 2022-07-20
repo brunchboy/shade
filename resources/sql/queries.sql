@@ -180,6 +180,10 @@ VALUES (:name, :related_id, now(), :details)
 ON CONFLICT (name, related_id) DO UPDATE
   SET happened = EXCLUDED.happened, details = EXCLUDED.details;
 
+-- :name list-events :? :*
+SELECT * from events
+ORDER BY name;
+
 
 -- :name create-sunblock-group! :! :n
 -- :doc creates a new sunblock group record
@@ -201,6 +205,11 @@ UPDATE macros
 -- :doc retrieves all sunblock group records
 SELECT * FROM sunblock_groups
  ORDER BY name
+
+-- :name get-sunblock-group :? :1
+-- :doc retrieves a single sunblock group record by ID
+SELECT * FROM sunblock_groups
+ WHERE id = :id
 
 -- :name delete-sunblock-group! :! :n
 -- :doc deletes a sunblock group record given the id

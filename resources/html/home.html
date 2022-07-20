@@ -36,11 +36,13 @@
 <h2 class="subtitle">Set Groups of Blinds to Preset Locations.</h2>
 
 <table class="table">
-  {% for macro in macros %}
-  <tr>
-    <td><button id="macro-{{macro.id}}" class="button is-primary{% if macro.in-effect %} is-light{% endif %}" onclick="runMacro('{{macro.id}}')">{{ macro.name }}</button></td>
-  </tr>
-  {% endfor %}
+  <tbody>
+    {% for macro in macros %}
+    <tr>
+      <td><button id="macro-{{macro.id}}" class="button is-primary{% if macro.in-effect %} is-light{% endif %}" onclick="runMacro('{{macro.id}}')">{{ macro.name }}</button></td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>
 {% else %}
 <h1 class="title">Welcome</h1>

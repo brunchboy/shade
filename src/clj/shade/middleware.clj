@@ -62,6 +62,8 @@
     :handler authenticated?}
    {:uri     "/profile" ; Need to be logged in to access the profile page.
     :handler authenticated?}
+   {:uri     "/status" ; Need to be logged in to access the status page.
+    :handler authenticated?}
    {:uri     "/run/*" ; Need to be logged in to run macros
     :handler authenticated?}
    {:uri     "/macro-states" ; Need to be logged in to check macro states

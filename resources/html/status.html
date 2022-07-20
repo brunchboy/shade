@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="title">Status</h1>
+<h2 class="subtitle">Information About the State of the System</h2>
+
+<div class="content">
+  <p>Current time: {{now|date:shortDateTime}}.<br>
+    Sun Elevation: {{sun.elevation|number-format:%.2f}}°, Azimuth: {{sun.azimuth|number-format:%.2f}}°.</p>
+</div>
+
+<h2 class="title is-4">Events</h2>
+
+<table class="table is-striped">
+  <thead>
+    <tr>
+      <th>Kind</th>
+      <th>Related Resource</th>
+      <th>Last Occurrence</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for event in events %}
+    <tr>
+      <td>{{event.name}}</td>
+      <td>{{event.related-name}}</td>
+      <td>{{event.happened|date:shortDateTime}}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2 class="title is-4">Blind Controller</h2>
+
+<div class="content">
+  <p>Connected?
+    {% if connected %}
+    <span class="tag is-success">Yes</span><br/>
+    Last Blind Position Update: {{blinds-update|date:shortDateTime}}<br/>
+    Last Blind Battery Update: {{battery-update|date:shortDateTime}}
+    {% else %}
+    <span class="tag is-danger">No</span>
+    {% endif %}</p>
+
+</div>
+
+
+{% endblock %}
