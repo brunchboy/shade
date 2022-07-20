@@ -61,9 +61,9 @@
                                          (:name (db/get-sunblock-group {:id (:related_id event)}))
 
                                          nil))
-                  (update :name {"sunblock-group-entered" "Sun Block Group entered"
-                                 "sunblock-group-exited"  "Sun Block Group exited"
-                                 "sunrise-protect"        "Sunrise Protection ran"})
+                  (update :name {"sunblock-group-entered" "Sun Block started"
+                                 "sunblock-group-exited"  "Sun Block ended"
+                                 "sunrise-protect"        "Sunrise Protection"})
                   (update :happened localize-timestamp))))
        (filter :name)))  ; Remove the ones we have no name for.
 
