@@ -86,13 +86,16 @@
 
 (defn status-page [request]
   (layout/render request "status.html"
-                 {:events    (format-events)
-                  :now       (localize-timestamp (Instant/now))
-                  :sun       (sun/position (ZonedDateTime/now)
-                                     (get-in env [:location :latitude]) (get-in env [:location :longitude]))
-                  :connected (some? @ws/channel-open)
-                  :blinds-update (format-timestamp-relative (:last-update @ws/shade-state))
-                  :battery-update (format-timestamp-relative (:last-battery-update @ws/shade-state))}))
+                 {:events            (format-events)
+                  :now               (localize-timestamp (Instant/now))
+                  :sun               (sun/position (ZonedDateTime/now)
+                                           (get-in env [:location :latitude]) (get-in env [:location :longitude]))
+                  :astronomical-dawn (sun/find-sunrise sun/astronomical-dawn-elevation)
+                  :sunrise           (sun/find-sunrise)
+                  :sunset            (sun/find-sunset)
+                  :connected         (some? @ws/channel-open)
+                  :blinds-update     (format-timestamp-relative (:last-update @ws/shade-state))
+                  :battery-update    (format-timestamp-relative (:last-battery-update @ws/shade-state))}))
 
 (defn run-macro [{:keys [path-params session]}]
   []

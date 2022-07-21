@@ -4,7 +4,9 @@
 
 <div class="content">
   <p>Current time: {{now|date:"yyyy-MM-dd HH:mm:ss"}}.<br>
-    Sun Elevation: {{sun.elevation|number-format:%.2f}}°, Azimuth: {{sun.azimuth|number-format:%.2f}}°.</p>
+    Sun Elevation: {{sun.elevation|number-format:%.2f}}°, Azimuth: {{sun.azimuth|number-format:%.2f}}°.<br>
+    Astronomical Dawn: {{astronomical-dawn|date:"HH:mm:ss"}}.<br>
+    Sunrise: {{sunrise|date:"HH:mm:ss"}}, Sunset: {{sunset|date:"HH:mm:ss"}}.</p>
 </div>
 
 <h2 class="title is-4">Blind Controller</h2>

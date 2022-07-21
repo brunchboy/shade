@@ -246,7 +246,7 @@
   (let [last-run (db/find-event {:name "sunrise-protect"})
         ch       @channel-open]
     (when-not (and last-run (same-day? last-run))      ; Has not already run today.
-      (when (and (> (:elevation sun-position) -18.0)    ; It's past astronomical dawn.
+      (when (and (> (:elevation sun-position) sun/astronomical-dawn-elevation)    ; It's past astronomical dawn.
                  ch)  ; And we have a connection to the blind interface.
         (log/info "Running sunrise-protect.")
         (ws/send (str {:action :set-levels

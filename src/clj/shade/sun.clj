@@ -4,8 +4,14 @@
   Position: Astronomical Algorithm in 9 Common Programming Languages,
   by John Clark Craig. Please see that book for much more detailed
   explanations of these calculations, along with diagrams and other
-  useful information."
-  (:import (java.time.temporal ChronoField JulianFields Temporal)
+  useful information.
+
+  Later functions build on these to compute other related and useful
+  items."
+  (:require [shade.config :refer [env]]
+            [java-time :as jt])
+  (:import (java.time ZoneId ZonedDateTime)
+           (java.time.temporal ChronoField JulianFields Temporal)
            (java.util.concurrent TimeUnit)))
 
 (defn decimal-degrees
@@ -212,6 +218,53 @@
         relative-azimuth (normalize-to-range (- (:azimuth position) offset) 0.0 360.0)]
     (and (<= left relative-azimuth right)
          (<= horizon (:elevation position) ceiling))))
+
+(defn- binary-search-elevation-time
+  "Performs a binary search between the specified times to find the time
+  at which the sun reaches the specified elevation at the specified
+  latitude and longitude, within two decimal places. `direction` must
+  be `<` if the sun is rising, and `>` if it is setting."
+  [low high elevation direction latitude longitude]
+  (if (jt/before? high low)  ; Correct for times being given in wrong order.
+    (recur high low elevation direction latitude longitude)
+    (let [apart           (jt/as (jt/duration low high) :millis)
+          midpoint        (jt/plus low (jt/millis (quot apart 2)))
+          elevation-found (:elevation (position midpoint latitude longitude))]
+      (if (< (Math/abs (- elevation elevation-found)) 0.005)
+        midpoint
+        (if (direction elevation-found elevation)
+          (recur midpoint high elevation direction latitude longitude)
+          (recur low midpoint elevation direction latitude longitude))))))
+
+(def astronomical-dawn-elevation
+  "The elevation of the sun above which the sky begins to ligthen at all."
+  -18.0)
+
+(defn find-sunrise
+  "Performs a binary search to determine when sunrise will occur today.
+  If `elevation` is supplied, alternate dawns (such as astronomical
+  dawn) can be found."
+  ([]
+   (find-sunrise 0.0))
+  ([elevation]
+   (let [location (:location env)
+         local-now (jt/with-zone (jt/zoned-date-time) (:timezone location))
+         midnight (jt/truncate-to local-now :days)
+         noon (jt/plus midnight (jt/hours 12))]
+     (binary-search-elevation-time midnight noon elevation < (:latitude location) (:longitude location)))))
+
+(defn find-sunset
+  "Performs a binary search to determine when sunset will occur today.
+  If `elevation` is supplied, alternate dusks (such as astronomical
+  dusk) can be found."
+  ([]
+   (find-sunset 0.0))
+  ([elevation]
+   (let [location (:location env)
+         local-now (jt/with-zone (jt/zoned-date-time) (:timezone location))
+         next-midnight (jt/truncate-to (jt/plus local-now (jt/days 1)) :days)
+         noon (jt/minus next-midnight (jt/hours 12))]
+     (binary-search-elevation-time noon next-midnight elevation > (:latitude location) (:longitude location)))))
 
 
 ;; This last function is not actually used, but it is included for
