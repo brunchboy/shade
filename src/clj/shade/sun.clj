@@ -248,7 +248,7 @@
    (find-sunrise 0.0))
   ([elevation]
    (let [location (:location env)
-         local-now (jt/with-zone (jt/zoned-date-time) (:timezone location))
+         local-now (jt/with-zone-same-instant (jt/zoned-date-time) (:timezone location))
          midnight (jt/truncate-to local-now :days)
          noon (jt/plus midnight (jt/hours 12))]
      (binary-search-elevation-time midnight noon elevation < (:latitude location) (:longitude location)))))
@@ -261,7 +261,7 @@
    (find-sunset 0.0))
   ([elevation]
    (let [location (:location env)
-         local-now (jt/with-zone (jt/zoned-date-time) (:timezone location))
+         local-now (jt/with-zone-same-instant (jt/zoned-date-time) (:timezone location))
          next-midnight (jt/truncate-to (jt/plus local-now (jt/days 1)) :days)
          noon (jt/minus next-midnight (jt/hours 12))]
      (binary-search-elevation-time noon next-midnight elevation > (:latitude location) (:longitude location)))))
