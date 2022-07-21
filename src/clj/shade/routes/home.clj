@@ -54,17 +54,17 @@
   "Formats a timestamp as a string, describing it relative to today if
   it falls within a week."
   [timestamp]
-  (let [localized      (localize-timestamp timestamp)
-        local-timezone (ZoneId/of (get-in env [:location :timezone]))
-        date           (jt/local-date localized)
-        today          (.toLocalDate (.withZoneSameInstant (ZonedDateTime/now) local-timezone))
-        days           (jt/as (jt/period date today) :days)]
-    (str (case days
-           0           "Today"
-           1           "Yesterday"
-           (2 3 4 5 6) (jt/format "EEEE" date)
-           (jt/format "YYYY-MM-dd" date))
-         (jt/format " HH:mm:ss" localized))))
+  (when-let [localized (localize-timestamp timestamp)]
+    (let [local-timezone (ZoneId/of (get-in env [:location :timezone]))
+          date           (jt/local-date localized)
+          today          (.toLocalDate (.withZoneSameInstant (ZonedDateTime/now) local-timezone))
+          days           (jt/as (jt/period date today) :days)]
+      (str (case days
+             0           "Today"
+             1           "Yesterday"
+             (2 3 4 5 6) (jt/format "EEEE" date)
+             (jt/format "YYYY-MM-dd" date))
+           (jt/format " HH:mm:ss" localized)))))
 
 (defn- format-events
   "Gather information about events which have been recorded for display
