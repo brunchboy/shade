@@ -68,12 +68,12 @@
         forecast       (-> (client/get (:forecast @weather-urls))
                            :body
                            json/read-str)
-        forecast       (first (filter (fn [period]
-                                        (and (get period "isDaytime")
-                                             (same-day? (ZonedDateTime/parse (get period "startTime"))
-                                                        local-timezone today)))
-                                      (get-in forecast ["properties" "periods"])))
-        high           (get forecast "temperature")]
+        found          (first (filter (fn [period]
+                                     (and (get period "isDaytime")
+                                          (same-day? (ZonedDateTime/parse (get period "startTime"))
+                                                     local-timezone today)))
+                                   (get-in forecast ["properties" "periods"])))
+        high           (get found "temperature")]
     (when high
       {:temperature high
        :today       today
