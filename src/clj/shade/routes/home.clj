@@ -90,8 +90,9 @@
        (filter :name)))  ; Remove the ones we have no name for.
 
 (defn status-page [request]
-  (let [temp      (weather/latest-temperature)
-        high      (weather/high-for-today)
+  (let [weather   (:weather @weather/state)
+        forecast  (weather/forecast-for-today)
+        high      (when forecast (:high forecast))
         latitude  (get-in env [:location :latitude])
         longitude (get-in env [:location :longitude])]
     (layout/render request "status.html"
@@ -104,10 +105,9 @@
                     :connected?        (some? @ws/channel-open)
                     :blinds-update     (format-timestamp-relative (:last-update @ws/shade-state))
                     :battery-update    (format-timestamp-relative (:last-battery-update @ws/shade-state))
-                    :weather-update    (localize-timestamp (:time temp))
-                    :temperature       temp
+                    :weather-update    (localize-timestamp (:time weather))
+                    :weather           weather
                     :high              high
-                    :high-update       (localize-timestamp (:generated high))
                     :overcast?         (weather/overcast?)})))
 
 (defn run-macro [{:keys [path-params session]}]

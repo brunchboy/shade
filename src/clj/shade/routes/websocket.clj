@@ -269,11 +269,11 @@
   "Checks whether our weather information indicates we want sun-blocking
   for temperature control."
   []
-  (not (or (when-let [temperature (weather/latest-temperature)]
-             (and (< (jt/as (jt/duration (:time temperature) (jt/zoned-date-time)) :hours) 2)
-                  (< (:temperature temperature) sunblock-temperature-threshold)))  ; It was recently enough cold.
-           (when-let [high (weather/high-for-today)]
-             (< (:temperature high) sunblock-temperature-threshold)))))  ; The forecast high for the day is cold enough.
+  (not (or (when-let [weather (:weather @weather/state)]
+             (and (< (jt/as (jt/duration (:time weather) (jt/zoned-date-time)) :minutes) 15)
+                  (< (:temperature weather) sunblock-temperature-threshold)))  ; It was recently enough cold.
+           (when-let [forecast (weather/forecast-for-today)]
+             (< (:high forecast) sunblock-temperature-threshold)))))  ; The forecast high for the day is cold enough.
 
 (defn sunblock-groups
   "Check to see if the sun has first entered any sunblock groups today,

@@ -10,103 +10,80 @@
             [clojure.tools.logging :as log])
   (:import [java.time ZonedDateTime]))
 
-(defn great-circle-distance
-  "Calculate the shortast distance over the earth's surface between the
-  two specified points using the haversine forumula."
-  [lat-1 lon-1 lat-2 lon-2]
-  (let [r  6731.0e3 ; Earth's mean radius in meters
-        ϕ1 (sun/degrees-to-radians lat-1)
-        ϕ2 (sun/degrees-to-radians lat-2)
-        Δϕ (- ϕ2 ϕ1)
-        Δλ (sun/degrees-to-radians (- lon-2 lon-1))
-        a  (+ (* (Math/sin (/ Δϕ 2)) (Math/sin (/ Δϕ 2)))
-              (* (Math/cos ϕ1) (Math/cos ϕ2) (Math/sin (/ Δλ 2)) (Math/sin (/ Δλ 2))))
-        c  (* 2 (Math/atan2 (Math/sqrt a) (Math/sqrt (- 1 a))))]
-    (* r c)))
+(def state
+  "Keeps track of weather information we have obtained."
+  (atom {}))
 
-(defn- find-closest-observation-station
-  "Finds the URL of the observation station geographically closest to us."
-  [observation-stations]
-  (let [latitude  (get-in env [:location :latitude])
-        longitude (get-in env [:location :longitude])]
-    (->> (map (fn [station]
-                (let [[station-longitude station-latitude] (get-in station ["geometry" "coordinates"])]
-                  {:url      (get station "id")
-                   :distance (great-circle-distance latitude longitude station-latitude station-longitude)}))
-              (get observation-stations "features"))
-         (sort-by :distance)  ; Likely unnecessary; they seem to arrive this way, but I have no proof.
-         first
-         :url)))
+(defn current-weather
+  "Gets current weather information for the location of the blinds."
+  []
+  (let [url (str "https://api.openweathermap.org/data/2.5/weather?lat=" (get-in env [:location :latitude])
+                 "&lon=" (get-in env [:location :longitude]) "&appid=" (:openweather-api-key env)
+                 "&units=imperial")]
+    (-> (client/get url)
+        :body
+        json/read-str)))
 
-(def weather-urls
-  "Holds the URLs used to obtain forecast and observation data for the
-  location of the blinds. A delay so they can be obtained from the NWS
-  the first time it is needed. Once found, they are stored under the
-  keys `:forecast` and `:observations`."
-  (delay
-    (let [point-url  (str "https://api.weather.gov/points/" (get-in env [:location :latitude])
-                          "," (get-in env [:location :longitude]))
-          point-info (-> (client/get point-url)
-                         :body
-                         json/read-str)
-          obs-url    (get-in point-info ["properties" "observationStations"])]
-      {:forecast (get-in point-info ["properties" "forecast"])
-       :observations (-> (client/get obs-url)
-                         :body
-                         json/read-str
-                         find-closest-observation-station)})))
+(defn parse-openweather-timestamp
+  "Converts an OpenWeather API dt timestamp to a `ZonedDateTime`
+  object."
+  [dt]
+  (java-time/zoned-date-time (java-time/instant (* dt 1000)) "UTC"))
+
+(defn format-current-weather
+  "Extracts current weather information details used to determine
+  whether sun block action is appropriate."
+  []
+  (let [weather (current-weather)]
+    {:time             (parse-openweather-timestamp (get weather "dt"))
+     :temperature      (get-in weather ["main" "temp"])
+     :relatve-humidity (get-in weather ["main" "humidity"])
+     :cloud-percentage (get-in weather ["clouds" "all"])}))
 
 (defn- same-day?
   "Checks whether the specified temporal object represents the same day as today."
   [t local-timezone today]
   (= (jt/local-date (jt/with-zone-same-instant t local-timezone)) today))
 
-(defn- update-high-for-today
-  "Tries to obtain the forecast high for today."
+(defn current-forecast
+  "Gets latest forecast information for the location of the blinds."
   []
+  (let [url (str "https://api.openweathermap.org/data/2.5/forecast?lat=" (get-in env [:location :latitude])
+                 "&lon=" (get-in env [:location :longitude]) "&appid=" (:openweather-api-key env)
+                 "&units=imperial&cnt=16")]
+    (-> (client/get url)
+        :body
+        json/read-str)))
+
+(defn format-current-forecast
+  "Extracts daily high and low temperatures for the next two days from
+  the latest forecast information."
+  [forecast old-forecast]
   (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
         today          (jt/local-date (jt/instant) local-timezone)
-        forecast       (-> (client/get (:forecast @weather-urls))
-                           :body
-                           json/read-str)
-        found          (first (filter (fn [period]
-                                     (and (get period "isDaytime")
-                                          (same-day? (ZonedDateTime/parse (get period "startTime"))
-                                                     local-timezone today)))
-                                   (get-in forecast ["properties" "periods"])))
-        high           (get found "temperature")]
-    (when high
-      {:temperature high
-       :today       today
-       :unit        (get today "temperatureUnit")
-       :generated   (ZonedDateTime/parse (get-in forecast ["properties" "generatedAt"]))})))
-
-(defn get-observation
-  "Tries to obtain the current temperature and cloud cover"
-  []
-  (let [observation (-> (client/get (str (:observations @weather-urls) "/observations/latest"))
-                        :body
-                        json/read-str
-                        (get "properties"))]
-    {:time             (ZonedDateTime/parse (get observation "timestamp"))
-     :dewpoint         (get observation "dewpoint")
-     :relatve-humidity (get observation "relativeHumidity")
-     :temperature      (get observation "temperature")
-     :cloud-layers     (get observation "cloudLayers")}))
-
-(def state
-  "Keeps track of weather information we have obtained."
-  (atom {}))
+        updated        (reduce (fn [acc entry]
+                                 (let [timestamp (parse-openweather-timestamp (get entry "dt"))
+                                       date-key  (jt/local-date (jt/with-zone-same-instant timestamp local-timezone))]
+                                   (update acc date-key
+                                           (fn [existing]
+                                             (if-let [temperature (get-in entry ["main" "temp"])]
+                                               {:low  (min (:low existing 2000.0) temperature)
+                                                :high (max (:high existing -2000.0) temperature)}
+                                               existing)))))
+                               (or old-forecast {})
+                               (get forecast "list"))]
+    ;; Get rid of any forecasts for days that are now in the past.
+    (select-keys updated (remove (partial jt/after? today) (keys updated)))))
 
 (defn- time-to-update?
   "Checks whether it is time to update weather information, keeping
-  track of when we do. We update every thirty minutes."
+  track of when we do. We update every thirty seconds."
   []
   (let [now     (java-time/instant)
         updated (swap! state update :update-attempted
                        (fn [last-attempt]
                          (if (or (not last-attempt)
-                                 (> (jt/as (jt/duration last-attempt now) :minutes) 29))
+                                 (> (jt/as (jt/duration last-attempt now) :seconds) 29))
                            now
                            last-attempt)))]
     (= now (:update-attempted updated))))
@@ -114,56 +91,28 @@
 (defn update-when-due
   "Tries to update weather information"
   []
-  (let [previous-update (:update-attempted @state)]
-    (when (time-to-update?)
-      (future
-        (try
-          (when-let [observation (get-observation)]
-            (swap! state assoc :observation observation))
-          ;; We update the forecast high less often, hourly but only before six in the evening.
-          (when-not (or (> (jt/as (jt/local-time (jt/instant) (jt/zone-id (get-in env [:location :timezone])))
-                                  :hour-of-day)
-                           17) ; Forecasts for today are no longer available.
-                        (and previous-update (zero? (jt/as (jt/duration previous-update (java-time/instant)) :hours))))
-            (when-let [high (update-high-for-today)]
-              (swap! state assoc :high high)))
-          (catch Throwable t
-            (log/error t "Problem getting updated weather information.")))))))
-
-(defn celsius-to-fahrenheit
-  [x]
-  (+ 32 (* x 1.8)))
-
-(defn latest-temperature
-  "Returns the latest temperature observation, and the time at which it
-  was made. If dewpoint and relative humidity are available returns
-  them as well."
-  []
-  (when-let [observation (:observation @state)]
-    (when-let [temperature (get-in observation [:temperature "value"])]
-      (merge (select-keys observation [:time])
-             {:temperature (celsius-to-fahrenheit temperature)}
-             (when-let [dew (get-in observation [:dewpoint "value"])]
-               {:dewpoint (celsius-to-fahrenheit dew)})
-             (when-let [rh (get-in observation [:relative-humidity "value"])]
-               {:relative-humidity rh})))))
-
-(defn high-for-today
-  "Returns the high temperature for today, if known."
-  []
-  (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
-        today          (jt/local-date (jt/instant) local-timezone)
-        high           (:high @state)]
-    (when (= today (:today high))
-      high)))
+  (when (time-to-update?)
+    (future
+      (try
+        (let [weather (format-current-weather)
+              forecast (current-forecast)]
+          (swap! state (fn [old-state]
+                         (-> old-state
+                             (assoc :weather weather)
+                             (update :forecast (partial format-current-forecast forecast))))))
+        (catch Throwable t
+          (log/error t "Problem getting updated weather information."))))))
 
 (defn overcast?
-  "Checks whether there are any fully overcast cloud layers."
+  "Checks whether there are enough clouds to ignore the temperature.
+  Let's see how it works to say the coverage has to be more than 97%."
   []
-  (when-let [observation (:observation @state)]
-    (when (< (jt/as (jt/duration (:time observation) (jt/zoned-date-time)) :hours) 2)
-      (let [cloud-layer-type-counts (->> (:cloud-layers observation)
-                                         (map #(get % "amount"))
-                                         (map str/lower-case)
-                                         frequencies)]
-        (pos? (get cloud-layer-type-counts "ovc" 0))))))
+  (when-let [cloud-percentage (get-in @state [:weather :cloud-percentage])]
+    (> cloud-percentage 97)))
+
+(defn forecast-for-today
+  "Look up today's forecast."
+  []
+  (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
+        today          (jt/local-date (jt/instant) local-timezone)]
+    (get-in @state [:forecast today])))

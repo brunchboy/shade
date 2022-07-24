@@ -10,13 +10,13 @@
   {% if any weather-update high %}
   <p>
     {% if weather-update %}
-    Temperature {{temperature.temperature|double-format}}°{% if temperature.dewpoint %}, dewpoint
-    {{temperature.dewpoint|double-format}}°{% endif %}{% if overcast? %}, overcast{% endif %}
+    Temperature {{weather.temperature|double-format}}°{% if weather.humidity %}, humidity
+    {{weather.humidity}}%{% endif %}{% if overcast? %}, overcast{% endif %}
     at {{weather-update|date:"HH:mm"}}.
     {% endif %}
     {% if all weather-update high %}<br>{% endif %}
     {% if high %}
-    High of {{high.temperature}}° was forecast at {{high-update|date:"HH:mm"}}.
+    High of {{high}}°.
     {% endif %}
   </p>
   {% endif %}
