@@ -7,6 +7,20 @@
     Sun Elevation: {{sun.elevation|number-format:%.2f}}°, Azimuth: {{sun.azimuth|number-format:%.2f}}°.<br>
     Astronomical Dawn: {{astronomical-dawn|date:"HH:mm:ss"}}.<br>
     Sunrise: {{sunrise|date:"HH:mm:ss"}}, Sunset: {{sunset|date:"HH:mm:ss"}}.</p>
+  {% if any weather-update high %}
+  <p>
+    {% if weather-update %}
+    Temperature {{temperature.temperature|double-format}}°{% if temperature.dewpoint %}, dewpoint
+    {{temperature.dewpoint|double-format}}°
+    {% endif %}
+    at {{weather-update|date:"HH:mm"}}.
+    {% endif %}
+    {% if all weather-update high %}<br>{% endif %}
+    {% if high %}
+    High of {{high.temperature}} was forecast at {{high-update|date:"HH:mm"}}.
+    {% endif %}
+  </p>
+  {% endif %}
 </div>
 
 <h2 class="title is-4">Blind Controller</h2>

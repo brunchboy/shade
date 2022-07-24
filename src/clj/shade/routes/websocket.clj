@@ -4,6 +4,7 @@
   (:require [shade.config :refer [env]]
             [shade.db.core :as db]
             [shade.sun :as sun]
+            [shade.weather :as weather]
             [ring.adapter.undertow.websocket :as ws]
             [clojure.core.async :as async]
             [clojure.edn :as edn]
@@ -327,9 +328,11 @@
                  (try
                    (async/<! (async/timeout 200))  ; Wait for atom to be initialized.
                    (request-position-update)
+                   (weather/update-when-due)
                    (loop [[_v c] (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true})]
                      (when (and (not= c shutdown-chan) (:shutdown @shade-state))
                        (request-position-update)
+                       (weather/update-when-due)
                        (run-needed-events)
                        (recur (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true}))))
                    (catch Throwable t

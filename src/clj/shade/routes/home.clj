@@ -4,6 +4,7 @@
    [shade.layout :as layout]
    [shade.db.core :as db]
    [shade.sun :as sun]
+   [shade.weather :as weather]
    [shade.routes.websocket :as ws]
    [clojure.string :as str]
    [shade.middleware :as middleware]
@@ -43,6 +44,10 @@
   either an Instant object or a number; if `nil` returns `nil`."
   [timestamp]
   (cond
+    (instance? ZonedDateTime timestamp)
+    (let [local-timezone (ZoneId/of (get-in env [:location :timezone]))]
+      (.toLocalDateTime (.withZoneSameInstant timestamp local-timezone)))
+
     (instance? Instant timestamp)
     (let [local-timezone (ZoneId/of (get-in env [:location :timezone]))]
       (.toLocalDateTime (.withZoneSameInstant (.atZone timestamp (ZoneId/of "UTC")) local-timezone)))
@@ -85,17 +90,24 @@
        (filter :name)))  ; Remove the ones we have no name for.
 
 (defn status-page [request]
-  (layout/render request "status.html"
-                 {:events            (format-events)
-                  :now               (localize-timestamp (Instant/now))
-                  :sun               (sun/position (ZonedDateTime/now)
-                                           (get-in env [:location :latitude]) (get-in env [:location :longitude]))
-                  :astronomical-dawn (sun/find-sunrise sun/astronomical-dawn-elevation)
-                  :sunrise           (sun/find-sunrise)
-                  :sunset            (sun/find-sunset)
-                  :connected         (some? @ws/channel-open)
-                  :blinds-update     (format-timestamp-relative (:last-update @ws/shade-state))
-                  :battery-update    (format-timestamp-relative (:last-battery-update @ws/shade-state))}))
+  (let [temp      (weather/latest-temperature)
+        high      (weather/high-for-today)
+        latitude  (get-in env [:location :latitude])
+        longitude (get-in env [:location :longitude])]
+    (layout/render request "status.html"
+                   {:events            (format-events)
+                    :now               (localize-timestamp (Instant/now))
+                    :sun               (sun/position (ZonedDateTime/now) latitude longitude)
+                    :astronomical-dawn (sun/find-sunrise sun/astronomical-dawn-elevation)
+                    :sunrise           (sun/find-sunrise)
+                    :sunset            (sun/find-sunset)
+                    :connected         (some? @ws/channel-open)
+                    :blinds-update     (format-timestamp-relative (:last-update @ws/shade-state))
+                    :battery-update    (format-timestamp-relative (:last-battery-update @ws/shade-state))
+                    :weather-update    (localize-timestamp (:time temp))
+                    :temperature       temp
+                    :high              high
+                    :high-update       (localize-timestamp (:generated high))})))
 
 (defn run-macro [{:keys [path-params session]}]
   []

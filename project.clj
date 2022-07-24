@@ -39,7 +39,8 @@
                  [ring/ring-core "1.9.5"]
                  [ring/ring-defaults "0.3.3"]
                  [ring-json-response "0.2.0"]
-                 [selmer "1.12.50"]]
+                 [selmer "1.12.50"]
+                 [clj-http "3.12.3"]]
 
   :min-lein-version "2.0.0"
 
