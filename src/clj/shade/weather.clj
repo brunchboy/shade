@@ -5,6 +5,7 @@
             [shade.sun :as sun]
             [clj-http.client :as client]
             [clojure.data.json :as json]
+            [clojure.string :as str]
             [java-time :as jt]
             [clojure.tools.logging :as log])
   (:import [java.time ZonedDateTime]))
@@ -139,13 +140,13 @@
   them as well."
   []
   (when-let [observation (:observation @state)]
-    (merge (select-keys observation [:time])
-           (when-let [temp (get-in observation [:temperature "value"])]
-             {:temperature (celsius-to-fahrenheit temp)})
-           (when-let [dew (get-in observation [:dewpoint "value"])]
-             {:dewpoint (celsius-to-fahrenheit dew)})
-           (when-let [rh (get-in observation [:relative-humidity "value"])]
-             {:relative-humidity rh}))))
+    (when-let [temperature (get-in observation [:temperature "value"])]
+      (merge (select-keys observation [:time])
+             {:temperature (celsius-to-fahrenheit temperature)}
+             (when-let [dew (get-in observation [:dewpoint "value"])]
+               {:dewpoint (celsius-to-fahrenheit dew)})
+             (when-let [rh (get-in observation [:relative-humidity "value"])]
+               {:relative-humidity rh})))))
 
 (defn high-for-today
   "Returns the high temperature for today, if known."
@@ -155,3 +156,14 @@
         high           (:high @state)]
     (when (= today (:today high))
       high)))
+
+(defn overcast?
+  "Checks whether there are any fully overcast cloud layers."
+  []
+  (when-let [observation (:observation @state)]
+    (when (< (jt/as (jt/duration (:time observation) (jt/zoned-date-time)) :hours) 2)
+      (let [cloud-layer-type-counts (->> (:cloud-layers observation)
+                                         (map #(get % "amount"))
+                                         (map str/lower-case)
+                                         frequencies)]
+        (pos? (get cloud-layer-type-counts "ovc" 0))))))

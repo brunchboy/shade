@@ -101,13 +101,14 @@
                     :astronomical-dawn (sun/find-sunrise sun/astronomical-dawn-elevation)
                     :sunrise           (sun/find-sunrise)
                     :sunset            (sun/find-sunset)
-                    :connected         (some? @ws/channel-open)
+                    :connected?        (some? @ws/channel-open)
                     :blinds-update     (format-timestamp-relative (:last-update @ws/shade-state))
                     :battery-update    (format-timestamp-relative (:last-battery-update @ws/shade-state))
                     :weather-update    (localize-timestamp (:time temp))
                     :temperature       temp
                     :high              high
-                    :high-update       (localize-timestamp (:generated high))})))
+                    :high-update       (localize-timestamp (:generated high))
+                    :overcast?         (weather/overcast?)})))
 
 (defn run-macro [{:keys [path-params session]}]
   []

@@ -281,38 +281,41 @@
   temperature, in which case those blinds should be closed. or first
   exited any which were entered earlier today."
   [sun-position]
-  (doseq [group (db/list-sunblock-groups)]
-    (let [last-opened (db/find-event {:name "sunblock-group-entered" :related-id (:id group)})
-          ch       @channel-open
-          shining? (sun/entering-windows? sun-position group)]
-      (if-not (and last-opened (same-day? last-opened))
-        ;; This group has not yet run today, time to close?
-        (when (and shining?        ; Sun is shining through this group.
-                   (warm-enough?)  ; The weather merits blocking the sun to keep the home cool.
-                   ch)             ; And we have a connection to the blind interface.
-          (log/info "Closing blinds for sunblock group" (:name group))
-          (ws/send (str {:action :set-levels
-                         :blinds (mapv (fn [shade]
-                                         {:id    (:controller_id shade)
-                                          :level (:close_min shade)})
-                                       (db/get-sunblock-group-entries {:sunblock_group (:id group)}))})
-                   ch)
-          (db/save-event {:name "sunblock-group-entered" :related-id (:id group)})
-          (tickle-state-updater))
+  (let [ch    @channel-open
+        warm  (warm-enough?)
+        clear (not (weather/overcast?))]
+    (doseq [group (db/list-sunblock-groups)]
+      (let [last-opened (db/find-event {:name "sunblock-group-entered" :related-id (:id group)})
+            shining?    (sun/entering-windows? sun-position group)]
+        (if-not (and last-opened (same-day? last-opened))
+          ;; This group has not yet run today, time to close?
+          (when (and shining?  ; The sun is shining through this group,
+                     warm      ; the weather merits blocking the sun to keep the home cool,
+                     clear     ; some sun may be getting through cloud layers,
+                     ch)       ; and we have a connection to the blind interface.
+            (log/info "Closing blinds for sunblock group" (:name group))
+            (ws/send (str {:action :set-levels
+                           :blinds (mapv (fn [shade]
+                                           {:id    (:controller_id shade)
+                                            :level (:close_min shade)})
+                                         (db/get-sunblock-group-entries {:sunblock_group (:id group)}))})
+                     ch)
+            (db/save-event {:name "sunblock-group-entered" :related-id (:id group)})
+            (tickle-state-updater))
 
-        ;; This group has run today, is it time to open back up?
-        (let [last-closed (db/find-event {:name "sunblock-group-exited" :related-id (:id group)})]
-          (when (and (not shining?)  ; Sun is no longer shining through this group.
-                     (not (and last-closed (same-day? last-closed)))  ; We have not yet closed it.
-                     ch)             ; And we have a connection to the blind interface.
-            (log/info "Reopening blinds for sunblock group" (:name group))
-          (ws/send (str {:action :set-levels
-                         :blinds (mapv (fn [shade]
-                                         {:id    (:controller_id shade)
-                                          :level (:open_max shade)})
-                                       (db/get-sunblock-group-entries {:sunblock_group (:id group)}))})
-                   ch)
-          (db/save-event {:name "sunblock-group-exited" :related-id (:id group)})))))))
+          ;; This group has run today, is it time to open back up?
+          (let [last-closed (db/find-event {:name "sunblock-group-exited" :related-id (:id group)})]
+            (when (and (not shining?)  ; Sun is no longer shining through this group.
+                       (not (and last-closed (same-day? last-closed)))  ; We have not yet closed it.
+                       ch)             ; And we have a connection to the blind interface.
+              (log/info "Reopening blinds for sunblock group" (:name group))
+              (ws/send (str {:action :set-levels
+                             :blinds (mapv (fn [shade]
+                                             {:id    (:controller_id shade)
+                                              :level (:open_max shade)})
+                                           (db/get-sunblock-group-entries {:sunblock_group (:id group)}))})
+                       ch)
+              (db/save-event {:name "sunblock-group-exited" :related-id (:id group)}))))))))
 
 (defn run-needed-events
   "Determine which events need running now, and run them."
