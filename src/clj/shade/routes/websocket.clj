@@ -5,6 +5,7 @@
             [shade.db.core :as db]
             [shade.sun :as sun]
             [shade.weather :as weather]
+            [java-time :as jt]
             [ring.adapter.undertow.websocket :as ws]
             [clojure.core.async :as async]
             [clojure.edn :as edn]
@@ -259,19 +260,36 @@
         (db/save-event {:name "sunrise-protect"})
         (tickle-state-updater)))))
 
+(def sunblock-temperature-threshold
+  "The temperature below which we suppress closing of shades for
+  thermal sun blocking."
+  60.0)
+
+(defn warm-enough?
+  "Checks whether our weather information indicates we want sun-blocking
+  for temperature control."
+  []
+  (not (or (when-let [temperature (weather/latest-temperature)]
+             (and (< (jt/as (jt/duration (:time temperature) (jt/zoned-date-time)) :hours) 2)
+                  (< (:temperature temperature) sunblock-temperature-threshold)))  ; It was recently enough cold.
+           (when-let [high (weather/high-for-today)]
+             (< (:temperature high) sunblock-temperature-threshold)))))  ; The forecast high for the day is cold enough.
+
 (defn sunblock-groups
   "Check to see if the sun has first entered any sunblock groups today,
-  in which case those blinds should be closed, or first exited any
-  which were entered earlier today."
+  and it is warm enough we want to block the sun for reasons of
+  temperature, in which case those blinds should be closed. or first
+  exited any which were entered earlier today."
   [sun-position]
   (doseq [group (db/list-sunblock-groups)]
     (let [last-opened (db/find-event {:name "sunblock-group-entered" :related-id (:id group)})
           ch       @channel-open
-          shining? (sun/entering-windows? sun-position group) ]
+          shining? (sun/entering-windows? sun-position group)]
       (if-not (and last-opened (same-day? last-opened))
         ;; This group has not yet run today, time to close?
-        (when (and shining?   ; Sun is shining through this group.
-                   ch)        ; And we have a connection to the blind interface.
+        (when (and shining?        ; Sun is shining through this group.
+                   (warm-enough?)  ; The weather merits blocking the sun to keep the home cool.
+                   ch)             ; And we have a connection to the blind interface.
           (log/info "Closing blinds for sunblock group" (:name group))
           (ws/send (str {:action :set-levels
                          :blinds (mapv (fn [shade]
