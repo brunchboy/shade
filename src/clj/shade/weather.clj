@@ -7,7 +7,7 @@
             [clojure.data.json :as json]
             [java-time :as jt]
             [clojure.tools.logging :as log])
-  (:import [java.time Instant ZonedDateTime]))
+  (:import [java.time ZonedDateTime]))
 
 (defn great-circle-distance
   "Calculate the shortast distance over the earth's surface between the
@@ -64,7 +64,7 @@
   "Tries to obtain the forecast high for today."
   []
   (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
-        today          (jt/local-date (jt/with-zone-same-instant (.atZone (Instant/now) (jt/zone-id)) local-timezone))
+        today          (jt/local-date (jt/instant) local-timezone)
         forecast       (-> (client/get (:forecast @weather-urls))
                            :body
                            json/read-str)
@@ -120,7 +120,9 @@
           (when-let [observation (get-observation)]
             (swap! state assoc :observation observation))
           ;; We update the forecast high less often, hourly but only before six in the evening.
-          (when-not (or (> (jt/as (jt/local-time) :hour-of-day) 17) ; Forecasts for todays are no longer available.
+          (when-not (or (> (jt/as (jt/local-time (jt/instant) (jt/zone-id (get-in env [:location :timezone])))
+                                  :hour-of-day)
+                           17) ; Forecasts for today are no longer available.
                         (and previous-update (zero? (jt/as (jt/duration previous-update (java-time/instant)) :hours))))
             (when-let [high (update-high-for-today)]
               (swap! state assoc :high high)))
@@ -149,7 +151,7 @@
   "Returns the high temperature for today, if known."
   []
   (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
-        today          (jt/local-date (jt/with-zone-same-instant (.atZone (Instant/now) (jt/zone-id)) local-timezone))
+        today          (jt/local-date (jt/instant) local-timezone)
         high           (:high @state)]
     (when (= today (:today high))
       high)))
