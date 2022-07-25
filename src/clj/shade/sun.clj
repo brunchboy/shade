@@ -10,9 +10,7 @@
   items."
   (:require [shade.config :refer [env]]
             [java-time :as jt])
-  (:import (java.time ZoneId ZonedDateTime)
-           (java.time.temporal ChronoField JulianFields Temporal)
-           (java.util.concurrent TimeUnit)))
+  (:import (java.time.temporal ChronoField)))
 
 (defn decimal-degrees
   "Convert degrees, minutes, and seconds to decimal degrees."
@@ -29,12 +27,13 @@
 (defn decimal-hour-of-day-utc
   "Given a Temporal object, determines the decimal hour of the day it
   represents in Coordinated Universal Time."
-  [^Temporal t]
-  (let [offset (/ (.get t ChronoField/OFFSET_SECONDS)
-                  (double (.toSeconds TimeUnit/HOURS 1)))]
-    (+ (- (.get t ChronoField/HOUR_OF_DAY) offset)  ; The current hour of the day at Greenwich.
-       (/ (.get t ChronoField/MINUTE_OF_HOUR) (double (.toMinutes TimeUnit/HOURS 1)))  ; Decimal minute.
-       (/ (.get t ChronoField/SECOND_OF_MINUTE) (double (.toSeconds TimeUnit/HOURS 1)))))) ; Decimal second.
+  [t]
+  (let [offset (/ (jt/as t :offset-seconds)
+                  (double (jt/as (jt/duration 1 :hours) :seconds)))]
+    (+ (- (jt/as t :hour-of-day) offset)  ; The current hour of the day at Greenwich.
+       ;; TODO: port next line to clojure.java-time once next release fixes lack of :minute-of-hour
+       (/ (.get t ChronoField/MINUTE_OF_HOUR) (double (jt/as (jt/duration 1 :hours) :minutes)))  ; Decimal minute.
+       (/ (jt/as t :second-of-minute) (double (jt/as (jt/duration 1 :hours) :seconds)))))) ; Decimal second.
 
 
 (def epoch-2000
@@ -48,8 +47,8 @@
   implementation is valid for all dates supported by `java.time`, and
   returns Julian time values in the form expected by the remaining
   calculations."
-  [^Temporal t]
-  (+ (- (.getLong t JulianFields/JULIAN_DAY) (.getLong epoch-2000 JulianFields/JULIAN_DAY))
+  [t]
+  (+ (- (jt/as t :julian-day) (jt/as epoch-2000 :julian-day))
      (/ (decimal-hour-of-day-utc t) 24)
      -0.5))
 
@@ -173,7 +172,7 @@
   basic adjustment for refraction by the atmosphere. The actual
   position of the sun can be calculated by subtracting the returned
   refraction correction from the reported elevation."
-  [^Temporal t latitude longitude]
+  [ t latitude longitude]
   (let [latitude-radians       (degrees-to-radians latitude)
         longitude-radians      (degrees-to-radians longitude)
         decimal-date           (decimal-days-since-2000 t)
@@ -280,9 +279,9 @@
   `java.time` to calculate it more easily and with a wider range of
   validity. (See `decimal-days-since-2000` above for our
   implementation.)"
-  [^Temporal t]
-  (let [day-1          (Math/floor (/ (+ (.get t ChronoField/MONTH_OF_YEAR) 9) 12))
-        day-2          (Math/floor (/ (* 7 (+ (.get t ChronoField/YEAR) day-1)) 4))
-        day-3          (Math/floor (/ (* 275 (.get t ChronoField/MONTH_OF_YEAR)) 9))
-        day-4          (+ (- (* 367 (.get t ChronoField/YEAR)) day-2) day-3)]
-    (- (+ day-4 (.get t ChronoField/DAY_OF_MONTH) (/ (decimal-hour-of-day-utc t) 24)) 730531.5)))
+  [t]
+  (let [day-1          (Math/floor (/ (+ (jt/as t :month-of-year) 9) 12))
+        day-2          (Math/floor (/ (* 7 (+ (jt/as t :year) day-1)) 4))
+        day-3          (Math/floor (/ (* 275 (jt/as t :month-of-year)) 9))
+        day-4          (+ (- (* 367 (jt/as t :year)) day-2) day-3)]
+    (- (+ day-4 (jt/as t :day-of-month) (/ (decimal-hour-of-day-utc t) 24)) 730531.5)))

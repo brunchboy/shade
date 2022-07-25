@@ -2,13 +2,10 @@
   "Handles obtaining weather information from the US National Weather
   Service to determine whether sun blocking is needed during the day."
   (:require [shade.config :refer [env]]
-            [shade.sun :as sun]
             [clj-http.client :as client]
             [clojure.data.json :as json]
-            [clojure.string :as str]
             [java-time :as jt]
-            [clojure.tools.logging :as log])
-  (:import [java.time ZonedDateTime]))
+            [clojure.tools.logging :as log]))
 
 (def state
   "Keeps track of weather information we have obtained."
@@ -28,7 +25,7 @@
   "Converts an OpenWeather API dt timestamp to a `ZonedDateTime`
   object."
   [dt]
-  (java-time/zoned-date-time (java-time/instant (* dt 1000)) "UTC"))
+  (jt/zoned-date-time (jt/instant (* dt 1000)) "UTC"))
 
 (defn format-current-weather
   "Extracts current weather information details used to determine
@@ -74,7 +71,7 @@
   "Checks whether it is time to update weather information, keeping
   track of when we do. We update every thirty seconds."
   []
-  (let [now     (java-time/instant)
+  (let [now     (jt/instant)
         updated (swap! state update :update-attempted
                        (fn [last-attempt]
                          (if (or (not last-attempt)

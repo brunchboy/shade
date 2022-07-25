@@ -14,8 +14,7 @@
    [java-time :as jt]
    [ring.util.response :refer [redirect content-type]]
    [ring.util.http-response :as response]
-   [ring.util.json-response :refer [json-response]])
-  (:import [java.time Instant ZonedDateTime ZoneId]))
+   [ring.util.json-response :refer [json-response]]))
 
 (defn home-page [request]
   (let [user-id (get-in request [:session :identity :id])
@@ -40,29 +39,30 @@
                  {:user (db/get-user {:id (get-in request [:session :identity :id])})}))
 
 (defn localize-timestamp
-  "Converts a timestamp from UTC to a local date and time. Accepts
-  either an Instant object or a number; if `nil` returns `nil`."
+  "Converts a timestamp to a local date and time (if an un-zoned
+  Instant, considers it to be in UTC). Accepts either an Instant
+  object or a number; if `nil` returns `nil`."
   [timestamp]
   (cond
-    (instance? ZonedDateTime timestamp)
-    (let [local-timezone (ZoneId/of (get-in env [:location :timezone]))]
-      (.toLocalDateTime (.withZoneSameInstant timestamp local-timezone)))
+    (jt/zoned-date-time? timestamp)
+    (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))]
+      (jt/local-date-time (jt/with-zone-same-instant timestamp local-timezone)))
 
-    (instance? Instant timestamp)
-    (let [local-timezone (ZoneId/of (get-in env [:location :timezone]))]
-      (.toLocalDateTime (.withZoneSameInstant (.atZone timestamp (ZoneId/of "UTC")) local-timezone)))
+    (jt/instant? timestamp)
+    (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))]
+      (jt/local-date-time (jt/with-zone-same-instant (.atZone timestamp (jt/zone-id "UTC")) local-timezone)))
 
     (number? timestamp)
-    (localize-timestamp (.toInstant (java.util.Date. timestamp)))))
+    (localize-timestamp (jt/instant timestamp))))
 
 (defn format-timestamp-relative
   "Formats a timestamp as a string, describing it relative to today if
   it falls within a week."
   [timestamp]
   (when-let [localized (localize-timestamp timestamp)]
-    (let [local-timezone (ZoneId/of (get-in env [:location :timezone]))
+    (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
           date           (jt/local-date localized)
-          today          (.toLocalDate (.withZoneSameInstant (ZonedDateTime/now) local-timezone))
+          today          (jt/local-date (jt/instant) local-timezone)
           days           (jt/as (jt/period date today) :days)]
       (str (case days
              0           "Today"
@@ -97,8 +97,8 @@
         longitude (get-in env [:location :longitude])]
     (layout/render request "status.html"
                    {:events            (format-events)
-                    :now               (localize-timestamp (Instant/now))
-                    :sun               (sun/position (ZonedDateTime/now) latitude longitude)
+                    :now               (localize-timestamp (jt/instant))
+                    :sun               (sun/position (jt/zoned-date-time) latitude longitude)
                     :astronomical-dawn (sun/find-sunrise sun/astronomical-dawn-elevation)
                     :sunrise           (sun/find-sunrise)
                     :sunset            (sun/find-sunset)

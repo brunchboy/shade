@@ -10,9 +10,7 @@
             [clojure.core.async :as async]
             [clojure.edn :as edn]
             [clojure.tools.logging :as log]
-            [mount.core :refer [defstate]])
-  (:import (java.util.concurrent TimeUnit)
-           (java.time Instant ZonedDateTime ZoneId)))
+            [mount.core :refer [defstate]]))
 
 (def channel-open
   "Keeps track of the channel associated with the open web socket."
@@ -202,16 +200,16 @@
 (def moving-interval
   "How often to check the blind positions if any are believed to be
   moving, in milliseconds."
-  (.toMillis TimeUnit/SECONDS 1))
+  (jt/as (jt/duration 1 :seconds) :millis))
 
 (def stopped-interval
   "How often to check the blind positions if none are believed to be
   moving, in milliseconds."
-  (.toMillis TimeUnit/SECONDS 30))
+  (jt/as (jt/duration 30 :seconds) :millis))
 
 (def battery-update-interval
   "How often to check the battery levels, in milliseconds."
-  (.toMillis TimeUnit/DAYS 1))
+  (jt/as (jt/duration 1 :days) :millis))
 
 (defn- request-position-update
   "Requests the current blind positions on a separate thread if the web
@@ -235,11 +233,11 @@
 (defn same-day?
   "Checks whether the specified event last ran today (in the time zone of the blinds)."
   [event]
-  (let [local-timezone (ZoneId/of (get-in env [:location :timezone]))
-        event-date     (.toLocalDate (.withZoneSameInstant (.atZone (:happened event) (ZoneId/of "UTC"))
-                                                           local-timezone))]
-    (= event-date (.toLocalDate  (.withZoneSameInstant (.atZone (Instant/now) (ZoneId/systemDefault))
-                                                       local-timezone)))))
+  (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
+        event-date     (jt/local-date (jt/with-zone-same-instant (.atZone (:happened event) (jt/zone-id "UTC"))
+                                        local-timezone))
+        today          (jt/local-date (jt/instant) local-timezone)]
+    (= event-date today)))
 
 (defn sunrise-protect
   "If we have just reached astronomical dawn, close the blackout
@@ -347,7 +345,7 @@
   []
   (future
     (when-not (throttled? :run-needed-events 20000)
-      (let [sun-position (sun/position (ZonedDateTime/now)
+      (let [sun-position (sun/position (jt/zoned-date-time)
                                        (get-in env [:location :latitude]) (get-in env [:location :longitude]))]
         (try
           (sunrise-protect sun-position)
