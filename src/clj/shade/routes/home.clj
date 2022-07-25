@@ -108,7 +108,7 @@
                     :weather-update    (localize-timestamp (:time weather))
                     :weather           weather
                     :high              high
-                    :overcast?         (weather/overcast?)})))
+                    :overcast?         (not (ws/not-overcast-enough?))})))
 
 (defn run-macro [{:keys [path-params session]}]
   []

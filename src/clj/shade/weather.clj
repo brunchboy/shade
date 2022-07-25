@@ -40,11 +40,6 @@
      :relatve-humidity (get-in weather ["main" "humidity"])
      :cloud-percentage (get-in weather ["clouds" "all"])}))
 
-(defn- same-day?
-  "Checks whether the specified temporal object represents the same day as today."
-  [t local-timezone today]
-  (= (jt/local-date (jt/with-zone-same-instant t local-timezone)) today))
-
 (defn current-forecast
   "Gets latest forecast information for the location of the blinds."
   []
@@ -57,23 +52,23 @@
 
 (defn format-current-forecast
   "Extracts daily high and low temperatures for the next two days from
-  the latest forecast information."
+  the latest forecast information. Keeps any values we already had for
+  today, so we don't lose peak high and low information as the day
+  draws to an end."
   [forecast old-forecast]
   (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
-        today          (jt/local-date (jt/instant) local-timezone)
-        updated        (reduce (fn [acc entry]
-                                 (let [timestamp (parse-openweather-timestamp (get entry "dt"))
-                                       date-key  (jt/local-date (jt/with-zone-same-instant timestamp local-timezone))]
-                                   (update acc date-key
-                                           (fn [existing]
-                                             (if-let [temperature (get-in entry ["main" "temp"])]
-                                               {:low  (min (:low existing 2000.0) temperature)
-                                                :high (max (:high existing -2000.0) temperature)}
-                                               existing)))))
-                               (or old-forecast {})
-                               (get forecast "list"))]
-    ;; Get rid of any forecasts for days that are now in the past.
-    (select-keys updated (remove (partial jt/after? today) (keys updated)))))
+        today          (jt/local-date (jt/instant) local-timezone)]
+    (reduce (fn [acc entry]
+              (let [timestamp (parse-openweather-timestamp (get entry "dt"))
+                    date-key  (jt/local-date (jt/with-zone-same-instant timestamp local-timezone))]
+                (update acc date-key
+                        (fn [existing]
+                          (if-let [temperature (get-in entry ["main" "temp"])]
+                            {:low  (min (:low existing 2000.0) temperature)
+                             :high (max (:high existing -2000.0) temperature)}
+                            existing)))))
+            (select-keys (or old-forecast {}) [today])
+            (get forecast "list"))))
 
 (defn- time-to-update?
   "Checks whether it is time to update weather information, keeping
@@ -102,13 +97,6 @@
                              (update :forecast (partial format-current-forecast forecast))))))
         (catch Throwable t
           (log/error t "Problem getting updated weather information."))))))
-
-(defn overcast?
-  "Checks whether there are enough clouds to ignore the temperature.
-  Let's see how it works to say the coverage has to be more than 97%."
-  []
-  (when-let [cloud-percentage (get-in @state [:weather :cloud-percentage])]
-    (> cloud-percentage 97)))
 
 (defn forecast-for-today
   "Look up today's forecast."

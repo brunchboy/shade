@@ -7,17 +7,11 @@
     Sun Elevation: {{sun.elevation|number-format:%.2f}}°, Azimuth: {{sun.azimuth|number-format:%.2f}}°.<br>
     Astronomical Dawn: {{astronomical-dawn|date:"HH:mm:ss"}}.<br>
     Sunrise: {{sunrise|date:"HH:mm:ss"}}, Sunset: {{sunset|date:"HH:mm:ss"}}.</p>
-  {% if any weather-update high %}
+  {% if weather-update %}
   <p>
-    {% if weather-update %}
-    Temperature {{weather.temperature|double-format}}°{% if weather.humidity %}, humidity
-    {{weather.humidity}}%{% endif %}{% if overcast? %}, overcast{% endif %}
-    at {{weather-update|date:"HH:mm"}}.
-    {% endif %}
-    {% if all weather-update high %}<br>{% endif %}
-    {% if high %}
-    High of {{high}}°.
-    {% endif %}
+    Temperature {{weather.temperature|double-format}}°
+    at {{weather-update|date:"HH:mm"}}{% if high %},
+    high {{high}}°{% endif %}{% if overcast? %}, overcast{% endif %}.
   </p>
   {% endif %}
 </div>

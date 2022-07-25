@@ -260,20 +260,45 @@
         (db/save-event {:name "sunrise-protect"})
         (tickle-state-updater)))))
 
+(def sunblock-max-weather-age
+  "The interval beyond which a weather condition report becomes too old
+  for considering in deciding whether we need sun-blocking."
+  (jt/duration 15 :minutes))
+
+(defn recent-enough?
+  "Makes sure a weather observation is new enough for us to still
+  consider it when deciding whether we need sun-blocking."
+  [weather]
+  (pos? (.compareTo sunblock-max-weather-age (jt/duration (:time weather) (jt/zoned-date-time)))))
+
 (def sunblock-temperature-threshold
   "The temperature below which we suppress closing of shades for
   thermal sun blocking."
   60.0)
 
 (defn warm-enough?
-  "Checks whether our weather information indicates we want sun-blocking
-  for temperature control."
+  "Checks whether our temperature information indicates we should
+  implement sun-blocking for temperature control."
   []
   (not (or (when-let [weather (:weather @weather/state)]
-             (and (< (jt/as (jt/duration (:time weather) (jt/zoned-date-time)) :minutes) 15)
-                  (< (:temperature weather) sunblock-temperature-threshold)))  ; It was recently enough cold.
+             (and (recent-enough? weather)
+                  (< (:temperature weather) sunblock-temperature-threshold)))  ; It was recently enough cold enough.
            (when-let [forecast (weather/forecast-for-today)]
              (< (:high forecast) sunblock-temperature-threshold)))))  ; The forecast high for the day is cold enough.
+
+(def sunblock-cloud-cover-threshold
+  "The cloud cover percentage above which we suppress closing of shades
+  for thermal sun blocking."
+  95)
+
+(defn not-overcast-enough?
+  "Checks whether our current cloud cover indicates we should not skip
+  sun-blocking if the temperature was high enough."
+  []
+  (when-let [weather (:weather @weather/state)]
+    (or (not (recent-enough? weather))
+        (when-let [cloud-percentage (:cloud-percentage weather)]
+          (<= cloud-percentage sunblock-cloud-cover-threshold)))))
 
 (defn sunblock-groups
   "Check to see if the sun has first entered any sunblock groups today,
@@ -283,7 +308,7 @@
   [sun-position]
   (let [ch    @channel-open
         warm  (warm-enough?)
-        clear (not (weather/overcast?))]
+        clear (not-overcast-enough?)]
     (doseq [group (db/list-sunblock-groups)]
       (let [last-opened (db/find-event {:name "sunblock-group-entered" :related-id (:id group)})
             shining?    (sun/entering-windows? sun-position group)]
