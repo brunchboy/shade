@@ -19,8 +19,10 @@
 (defn home-page [request]
   (let [user-id (get-in request [:session :identity :id])
         macros  (db/list-macros-for-user {:user user-id})
+        rooms   (db/list-rooms-for-user {:user user-id})
         active  (:is_active (db/get-user {:id user-id}))]
     (layout/render request "home.html" {:macros (ws/macros-in-effect macros user-id)
+                                        :rooms  rooms
                                         :active active})))
 
 (defn macro-states [request]
@@ -29,14 +31,32 @@
     (response/ok (map #(select-keys % [:id :in-effect]) (ws/macros-in-effect macros user-id)))))
 
 (defn about-page [request]
-  (layout/render request "about.html"))
+  (let [user-id (get-in request [:session :identity :id])
+        rooms   (db/list-rooms-for-user {:user user-id})]
+    (layout/render request "about.html" {:rooms rooms})))
 
 (defn login-page [request]
   (layout/render request "login.html"))
 
 (defn profile-page [request]
-  (layout/render request "profile.html"
-                 {:user (db/get-user {:id (get-in request [:session :identity :id])})}))
+  (let [user-id (get-in request [:session :identity :id])
+        rooms   (db/list-rooms-for-user {:user user-id})]
+    (layout/render request "profile.html"
+                   {:user  (db/get-user {:id user-id})
+                    :rooms rooms})))
+
+(defn room-page [{:keys [path-params session] :as request}]
+  (let [user-id (get-in session [:identity :id])
+        rooms   (db/list-rooms-for-user {:user user-id})
+        room-id (java.util.UUID/fromString (:id path-params))
+        room    (db/get-room {:id room-id})]
+    (if (and room (some #(= (:id %) room-id) rooms))
+      (layout/render request "room.html"
+                     {:onload "draw();"
+                      :user  (db/get-user {:id user-id})
+                      :rooms rooms
+                      :room  room})
+      (layout/error-page {:status 404 :title "404 - Page not found"}))))
 
 (defn localize-timestamp
   "Converts a timestamp to a local date and time (if an un-zoned
@@ -94,9 +114,12 @@
         forecast  (weather/forecast-for-today)
         high      (when forecast (:high forecast))
         latitude  (get-in env [:location :latitude])
-        longitude (get-in env [:location :longitude])]
+        longitude (get-in env [:location :longitude])
+        user-id   (get-in request [:session :identity :id])
+        rooms     (db/list-rooms-for-user {:user user-id})]
     (layout/render request "status.html"
-                   {:events            (format-events)
+                   {:rooms             rooms
+                    :events            (format-events)
                     :now               (localize-timestamp (jt/instant))
                     :sun               (sun/position (jt/zoned-date-time) latitude longitude)
                     :astronomical-dawn (sun/find-sunrise sun/astronomical-dawn-elevation)
@@ -220,8 +243,9 @@
    ["/login" {:get  login-page
               :post login-authenticate}]
    ["/logout" {:get logout}]
+   ["/macro-states" {:get macro-states}]
    ["/profile" {:get  profile-page
                 :post profile-update}]
-   ["/status" {:get status-page}]
+   ["/room/:id" {:get room-page}]
    ["/run/:id" {:get run-macro}]
-   ["/macro-states" {:get macro-states}]])
+   ["/status" {:get status-page}]])

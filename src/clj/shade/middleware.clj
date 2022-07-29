@@ -64,6 +64,8 @@
     :handler authenticated?}
    {:uri     "/status" ; Need to be logged in to access the status page.
     :handler authenticated?}
+   {:uri     "/rooms/*" ; Need to be logged in to view rooms
+    :handler authenticated?}
    {:uri     "/run/*" ; Need to be logged in to run macros
     :handler authenticated?}
    {:uri     "/macro-states" ; Need to be logged in to check macro states

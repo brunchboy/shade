@@ -55,6 +55,14 @@ UPDATE rooms
 -- :doc retrieves all room records
 SELECT * FROM rooms
 
+-- :name list-rooms-for-user :? :*
+-- :doc retrieves all room records available to the specified user
+SELECT r.*
+  FROM rooms r
+  INNER JOIN users_rooms ur on ur.room = r.id
+ WHERE ur.user = :user
+ ORDER BY r.name
+
 -- :name get-room :? :1
 -- :doc retrieves a room record given the id
 SELECT * FROM rooms
