@@ -41,7 +41,7 @@ DELETE FROM users
 
 -- :name create-room! :! :n
 -- :doc creates a new room record
-INSERT INTO rooms (id, name sunrise_protect)
+INSERT INTO rooms (id, name, sunrise_protect)
 VALUES (gen_random_uuid(), :name, :sunrise_protect)
 
 -- :name update-room! :! :n
