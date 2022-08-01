@@ -177,6 +177,15 @@ DELETE FROM macro_entriess
  WHERE id = :id
 
 
+-- :name get-room-photo-boundaries :? :*
+-- :doc retrieves the photo boundary information for all blinds in a room
+select spb.id, kind, controller_id, open_max, close_min,
+       top_left_x, top_left_y, top_right_x, top_right_y, bottom_left_x, bottom_left_y, bottom_right_x, bottom_right_y
+  from shade_photo_boundaries spb
+ inner join shades s on spb.id = s.photo_boundaries_id
+ where s.room = :room
+
+
 -- :name get-event :? :1
 SELECT * from events
  WHERE name = :name
