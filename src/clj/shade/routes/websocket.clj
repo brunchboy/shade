@@ -230,6 +230,54 @@
           {}
           bounds))
 
+(defn interpolate
+  "Given a starting and ending point, and a level from 0 to 100,
+  interpolates between the two points."
+  [start end percentage]
+  (let [range (- end start)]
+    (Math/round (+ start (/ (* range (- 100 percentage)) 100.0)))))
+
+(defn- clip
+  "Given a shade boundary map produced by `shades-visible`, and a top
+  and bottom level expressed as percentages, returns the boundaries
+  clipped to include the specified section only."
+  [{:keys [top_left_x top_left_y top_right_x top_right_y bottom_left_x bottom_left_y bottom_right_x bottom_right_y]}
+   top-level bottom-level]
+  {:top_left_x (interpolate top_left_x bottom_left_x top-level)
+   :bottom_left_x (interpolate top_left_x bottom_left_x bottom-level)
+   :top_left_y (interpolate top_left_y bottom_left_y top-level)
+   :bottom_left_y (interpolate top_left_y bottom_left_y bottom-level)
+   :top_right_x (interpolate top_right_x bottom_right_x top-level)
+   :bottom_right_x (interpolate top_right_x bottom_right_x bottom-level)
+   :top_right_y (interpolate top_right_y bottom_right_y top-level)
+   :bottom_right_y (interpolate top_right_y bottom_right_y bottom-level)})
+
+(defn- regions-to-draw
+  "Given a shade boundary map produced by `shades-visible`, returns a
+  list of image types and clipping regions that need to be drawn to
+  show the cooresponding current shade state for that pair of shades."
+  [{:keys [shades] :as boundaries}]
+  (let [levels (set (map :level (vals shades)))]
+    (if (= 1 (count levels))
+      ;; Both blinds in this pair are at the same level, we have at most one region to draw.
+      (let [level (first levels)]
+        (when (pos? level) ;; We only have to draw something if the blinds aren't closed.
+          [(merge {:image "open"}
+                  (clip boundaries level 0))]))
+      ;; Blinds are at different levels
+      (let [[bottom-shade top-shade] (sort-by (fn [entry] (get-in entry [1 :level])) shades)
+            top-level                (get-in top-shade [1 :level])
+            bottom-level             (get-in bottom-shade [1 :level])]
+        (concat
+         (when (< top-level 100)  ; The top shade is visible
+           [(merge {:image "both"}
+                   (clip boundaries 100 top-level))])
+         [(merge {:image (if (= (first bottom-shade) "blackout") "blackout" "privacy")}
+                 (clip boundaries top-level bottom-level))]
+         (when (> bottom-level 0)  ; There is an open section
+           [(merge {:image "open"}
+                   (clip boundaries bottom-level 0))]))))))
+
 (defn shades-visible
   "Sends a list of image region updates required to make a room photo
   accurately reflect the current state of the shades, as long as the
@@ -242,8 +290,7 @@
       (->> (db/get-room-photo-boundaries {:room room-id})
            group-shades
            vals
-           ;; TODO: Reduce over values converting into list of images and clipping regions to be drawn.
-           ))))
+           (mapcat regions-to-draw)))))
 
 
 (def moving-interval

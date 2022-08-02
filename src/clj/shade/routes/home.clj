@@ -52,7 +52,7 @@
         room    (db/get-room {:id room-id})]
     (if (and room (some #(= (:id %) room-id) rooms))
       (layout/render request "room.html"
-                     {:onload "draw();"
+                     {:onload "updateShadeStates();"
                       :user  (db/get-user {:id user-id})
                       :rooms rooms
                       :room  room})

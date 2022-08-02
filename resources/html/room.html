@@ -9,6 +9,37 @@
 
     ctx.drawImage(document.getElementById('both'), 0, 0, canvas.width, canvas.height);
   }
+
+  function drawShadeState(entry, canvas, ctx) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(entry.top_left_x, entry.top_left_y);
+    ctx.lineTo(entry.top_right_x, entry.top_right_y);
+    ctx.lineTo(entry.bottom_right_x, entry.bottom_right_y);
+    ctx.lineTo(entry.bottom_left_x, entry.bottom_left_y);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(document.getElementById(entry.image), 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+
+  function shadeStateListener() {
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(document.getElementById('both'), 0, 0, canvas.width, canvas.height);
+
+    const states = JSON.parse(this.responseText);
+    states.forEach(entry => drawShadeState(entry, canvas, ctx));
+  }
+
+  function updateShadeStates() {
+    const req = new XMLHttpRequest();
+    req.addEventListener("load", shadeStateListener);
+    req.open("GET", "/shades-visible/{{room.id}}");
+    req.send();
+  }
+
+  setInterval(updateShadeStates, 400);
 </script>
 
 <div style="display:none;">
