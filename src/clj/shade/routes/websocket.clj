@@ -153,7 +153,7 @@
 (defn websocket-routes []
   [["/ws" handler]])
 
-(defn normalize-macro-level
+(defn narrow-macro-level
   "Translates a macro shade level, which ranges from 0 to 100, to the
   potentially more limited range required by the calibration
   correction associated with the shade, if any."
@@ -171,7 +171,7 @@
       (ws/send (str {:action :set-levels
                      :blinds (mapv (fn [entry]
                                      {:id    (:controller_id entry)
-                                      :level (normalize-macro-level entry)})
+                                      :level (narrow-macro-level entry)})
                                    entries)})
                ch)
       (doseq [entry entries]
@@ -193,9 +193,58 @@
     (mapv (fn [macro]
             (let [entries (db/get-macro-entries {:macro (:id macro)
                                                  :user  user-id})]
-              (assoc macro :in-effect (every? #(= (normalize-macro-level %)
+              (assoc macro :in-effect (every? #(= (narrow-macro-level %)
                                                   (get-in state [(:shade %) :level])) entries))))
           macros)))
+
+(defn expand-shade-level
+  "Translates an actual shade level, which is in a potentially limited
+  range required by the calibration correction associated with the
+  shade, to the full 0-100 range."
+  [{:keys [level close_min open_max]}]
+  (let [range (- open_max close_min)]
+    (Math/round (* 100.0 (/ (- level close_min) range)))))
+
+(defn- include-level
+  "Takes a shade bounds entry being reported for a room, and inserts the
+  current level of that shade into it, expanding it back to the
+  logical range where 0 is fully closed and 100 is fully open."
+  [shade-info]
+  (let [state   (:shades @shade-state)
+        leveled (assoc shade-info :level (get-in state [(:shade_id shade-info) :level] (:close_min shade-info)))]
+    (-> shade-info
+        (assoc :level (expand-shade-level leveled))
+        (dissoc :close_min :open_max))))
+
+(defn- group-shades
+  "Transforms the shade photo boundaries rows so that shades which share
+  the same boundaries are grouped into a single entry."
+  [bounds]
+  (reduce (fn [acc v]
+            (let [shade-info (select-keys v [:kind :close_min :open_max :controller_id :shade_id])
+                  base       (or (get acc (:id v))
+                                 (assoc (apply dissoc v :id (keys shade-info))
+                                        :shades {}))]
+              (assoc acc (:id v) (update base :shades assoc (:kind shade-info)
+                                         (dissoc (include-level shade-info) :kind)))))
+          {}
+          bounds))
+
+(defn shades-visible
+  "Sends a list of image region updates required to make a room photo
+  accurately reflect the current state of the shades, as long as the
+  specified user has access to the specified room."
+  [room-id user-id]
+  (let [valid-rooms (->> (db/list-rooms-for-user {:user user-id})
+                         (map :id)
+                         set)]
+    (when (valid-rooms room-id)
+      (->> (db/get-room-photo-boundaries {:room room-id})
+           group-shades
+           vals
+           ;; TODO: Reduce over values converting into list of images and clipping regions to be drawn.
+           ))))
+
 
 (def moving-interval
   "How often to check the blind positions if any are believed to be

@@ -134,9 +134,15 @@
                     :overcast?         (not (ws/not-overcast-enough?))})))
 
 (defn run-macro [{:keys [path-params session]}]
-  []
   (ws/run-macro (java.util.UUID/fromString (:id path-params)) (get-in session [:identity :id]))
   (json-response {:action "Macro run"}))
+
+(defn shades-visible [{:keys [path-params session]}]
+  (let [user-id (get-in session [:identity :id])
+        room-id (java.util.UUID/fromString (:room path-params))]
+    (json-response (ws/shades-visible room-id user-id))))
+
+
 
 (defn login-authenticate
   "Check request username and password against authdata
@@ -248,4 +254,5 @@
                 :post profile-update}]
    ["/room/:id" {:get room-page}]
    ["/run/:id" {:get run-macro}]
+   ["/shades-visible/:room" {:get shades-visible}]
    ["/status" {:get status-page}]])
