@@ -3,12 +3,7 @@
 <h1 class="title">Room: {{room.name}}</h1>
 
 <script type="text/javascript">
-  function draw() {
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-
-    ctx.drawImage(document.getElementById('both'), 0, 0, canvas.width, canvas.height);
-  }
+  var shadeStates = [];
 
   function drawShadeState(entry, canvas, ctx) {
     ctx.save();
@@ -23,13 +18,18 @@
     ctx.restore();
   }
 
-  function shadeStateListener() {
+  function draw() {
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(document.getElementById('both'), 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(document.getElementById('open'), 0, 0, canvas.width, canvas.height);
 
-    const states = JSON.parse(this.responseText);
-    states.forEach(entry => drawShadeState(entry, canvas, ctx));
+    shadeStates.forEach(entry => drawShadeState(entry, canvas, ctx));
+
+    window.requestAnimationFrame(draw);
+  }
+
+  function shadeStateListener() {
+    shadeStates = JSON.parse(this.responseText);
   }
 
   function updateShadeStates() {
@@ -39,7 +39,8 @@
     req.send();
   }
 
-  setInterval(updateShadeStates, 400);
+  updateShadeStates();
+  setInterval(updateShadeStates, 200);
 </script>
 
 <div style="display:none;">

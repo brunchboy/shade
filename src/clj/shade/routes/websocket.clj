@@ -261,9 +261,9 @@
     (if (= 1 (count levels))
       ;; Both blinds in this pair are at the same level, we have at most one region to draw.
       (let [level (first levels)]
-        (when (pos? level) ;; We only have to draw something if the blinds aren't closed.
-          [(merge {:image "open"}
-                  (clip boundaries level 0))]))
+        (when (< level 100) ;; We only have to draw something if the blinds aren't fully open.
+          [(merge {:image "both"}
+                  (clip boundaries 100 level))]))
       ;; Blinds are at different levels
       (let [[bottom-shade top-shade] (sort-by (fn [entry] (get-in entry [1 :level])) shades)
             top-level                (get-in top-shade [1 :level])
@@ -273,24 +273,40 @@
            [(merge {:image "both"}
                    (clip boundaries 100 top-level))])
          [(merge {:image (if (= (first bottom-shade) "blackout") "blackout" "privacy")}
-                 (clip boundaries top-level bottom-level))]
-         (when (> bottom-level 0)  ; There is an open section
-           [(merge {:image "open"}
-                   (clip boundaries bottom-level 0))]))))))
+                 (clip boundaries top-level bottom-level))])))))
+
+(defn base-image
+  "Calculates the best starting image on which to draw the positions of
+  the blinds."
+  [grouped-shades]
+  ;; TODO if all closed use "both", otherwise if all blackout closed
+  ;; use "blackout", otherwise if all screens closed use "privacy",
+  ;; otherwise use "open".
+  (let [image "open"]
+    [{:image          image
+      :top_left_y     0
+      :bottom_left_y  3024
+      :top_right_y    0
+      :bottom_right_y 3024
+      :bottom_left_x  0
+      :top_left_x     0
+      :bottom_right_x 4032
+      :top_right_x    4032}]))
 
 (defn shades-visible
   "Sends a list of image region updates required to make a room photo
   accurately reflect the current state of the shades, as long as the
   specified user has access to the specified room."
   [room-id user-id]
-  (let [valid-rooms (->> (db/list-rooms-for-user {:user user-id})
+  (let [valid-rooms    (->> (db/list-rooms-for-user {:user user-id})
                          (map :id)
-                         set)]
+                         set)
+        grouped-shades (->> (db/get-room-photo-boundaries {:room room-id})
+                            group-shades
+                            vals)]
     (when (valid-rooms room-id)
-      (->> (db/get-room-photo-boundaries {:room room-id})
-           group-shades
-           vals
-           (mapcat regions-to-draw)))))
+      (concat (base-image grouped-shades)
+              (mapcat regions-to-draw grouped-shades)))))
 
 
 (def moving-interval
