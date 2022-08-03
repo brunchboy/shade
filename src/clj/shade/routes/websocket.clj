@@ -279,9 +279,11 @@
   "Calculates the best starting image on which to draw the positions of
   the blinds."
   [grouped-shades]
-  ;; TODO if all closed use "both", otherwise if all blackout closed
+  ;; TODO: if all closed use "both", otherwise if all blackout closed
   ;; use "blackout", otherwise if all screens closed use "privacy",
   ;; otherwise use "open".
+  ;;
+  ;; TODO: Get image dimensions from room row in database (also use in room.html).
   (let [image "open"]
     [{:image          image
       :top_left_y     0

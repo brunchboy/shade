@@ -4,6 +4,7 @@
 
 <script type="text/javascript">
   var shadeStates = [];
+  var drawing = false;
 
   function drawShadeState(entry, canvas, ctx) {
     ctx.save();
@@ -24,12 +25,14 @@
     ctx.drawImage(document.getElementById('open'), 0, 0, canvas.width, canvas.height);
 
     shadeStates.forEach(entry => drawShadeState(entry, canvas, ctx));
-
-    window.requestAnimationFrame(draw);
+    drawing = true;
   }
 
   function shadeStateListener() {
     shadeStates = JSON.parse(this.responseText);
+    if (drawing) {
+      draw();
+    }
   }
 
   function updateShadeStates() {
