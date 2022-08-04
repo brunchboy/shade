@@ -9,6 +9,7 @@
             [ring.adapter.undertow.websocket :as ws]
             [clojure.core.async :as async]
             [clojure.edn :as edn]
+            [clojure.set :as set]
             [clojure.tools.logging :as log]
             [mount.core :refer [defstate]]))
 
@@ -255,60 +256,84 @@
 (defn- regions-to-draw
   "Given a shade boundary map produced by `shades-visible`, returns a
   list of image types and clipping regions that need to be drawn to
-  show the cooresponding current shade state for that pair of shades."
-  [{:keys [shades] :as boundaries}]
+  show the cooresponding current shade state for that pair of shades.
+  `base-name` is the name of the base image being drawn, which lets us
+  determine when regions can be omitted."
+  [base-name {:keys [shades] :as boundaries}]
   (let [levels (set (map :level (vals shades)))]
     (if (= 1 (count levels))
-      ;; Both blinds in this pair are at the same level, we have at most one region to draw.
+      ;; Both blinds in this pair are at the same level, we have at most two regions to draw.
       (let [level (first levels)]
-        (when (< level 100) ;; We only have to draw something if the blinds aren't fully open.
-          [(merge {:image "both"}
-                  (clip boundaries 100 level))]))
-      ;; Blinds are at different levels
+        (concat
+         (when (and (< level 100)             ; We only have to draw the blinds if they aren't fully open,
+                    (not= base-name "both"))  ; and only if the base image doesn't already show them.
+           [(merge {:image "both"}
+                   (clip boundaries 100 level))])
+         (when (and (pos? level)              ; We only have to draw the window if the blinds aren't fully closed,
+                    (not= base-name "open"))  ; and only if the base image doesn't already show the window.
+           [(merge {:image "open"}
+                   (clip boundaries level 0))])))
+      ;; Blinds are at different levels, we have up to three regions to draw.
       (let [[bottom-shade top-shade] (sort-by (fn [entry] (get-in entry [1 :level])) shades)
             top-level                (get-in top-shade [1 :level])
             bottom-level             (get-in bottom-shade [1 :level])]
         (concat
-         (when (< top-level 100)  ; The top shade is visible
+         (when (and (< top-level 100)         ; The top shade is visible, so there is a region of both shades,
+                    (not= base-name "both"))  ; and the base image doesn't already show them.
            [(merge {:image "both"}
                    (clip boundaries 100 top-level))])
-         [(merge {:image (if (= (first bottom-shade) "blackout") "blackout" "privacy")}
-                 (clip boundaries top-level bottom-level))])))))
+         (let [lower-image (if (= (first bottom-shade) "blackout") "blackout" "privacy")]
+           (when (not= base-name lower-image)  ; The lower blind section is different than the base image.
+             [(merge {:image lower-image}
+                     (clip boundaries top-level bottom-level))]))
+         (when (and (pos? bottom-level)       ; We only have to draw the window if lower blind isn't fully closed,
+                    (not= base-name "open"))  ; and only if the base image doesn't already show the window.
+           [(merge {:image "open"}
+                   (clip boundaries bottom-level 0))]))))))
 
 (defn base-image
   "Calculates the best starting image on which to draw the positions of
   the blinds."
   [grouped-shades]
-  ;; TODO: if all closed use "both", otherwise if all blackout closed
-  ;; use "blackout", otherwise if all screens closed use "privacy",
-  ;; otherwise use "open".
-  ;;
   ;; TODO: Get image dimensions from room row in database (also use in room.html).
-  (let [image "open"]
-    [{:image          image
-      :top_left_y     0
-      :bottom_left_y  3024
-      :top_right_y    0
-      :bottom_right_y 3024
-      :bottom_left_x  0
-      :top_left_x     0
-      :bottom_right_x 4032
-      :top_right_x    4032}]))
+  (let [blackout-levels (set (map #(get-in % [:shades "blackout" :level]) grouped-shades))
+        screen-levels (set (map #(get-in % [:shades "screen" :level]) grouped-shades))]
+    {:image          (cond
+                       (= #{0} (set/union blackout-levels screen-levels))
+                       "both"
+
+                       (= #{0} blackout-levels)
+                       "blackout"
+
+                       (= #{0} screen-levels)
+                       "privacy"
+
+                       :else
+                       "open")
+     :top_left_y     0
+     :bottom_left_y  3024
+     :top_right_y    0
+     :bottom_right_y 3024
+     :bottom_left_x  0
+     :top_left_x     0
+     :bottom_right_x 4032
+     :top_right_x    4032}))
 
 (defn shades-visible
   "Sends a list of image region updates required to make a room photo
   accurately reflect the current state of the shades, as long as the
   specified user has access to the specified room."
   [room-id user-id]
-  (let [valid-rooms    (->> (db/list-rooms-for-user {:user user-id})
-                         (map :id)
-                         set)
-        grouped-shades (->> (db/get-room-photo-boundaries {:room room-id})
-                            group-shades
-                            vals)]
+  (let [valid-rooms (->> (db/list-rooms-for-user {:user user-id})
+                            (map :id)
+                            set)]
     (when (valid-rooms room-id)
-      (concat (base-image grouped-shades)
-              (mapcat regions-to-draw grouped-shades)))))
+      (let [grouped-shades (->> (db/get-room-photo-boundaries {:room room-id})
+                                group-shades
+                                vals)
+            base           (base-image grouped-shades)]
+        (concat [base]
+                (mapcat (partial regions-to-draw (:image base)) grouped-shades))))))
 
 
 (def moving-interval
