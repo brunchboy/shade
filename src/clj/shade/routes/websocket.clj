@@ -293,9 +293,8 @@
 
 (defn base-image
   "Calculates the best starting image on which to draw the positions of
-  the blinds."
-  [grouped-shades]
-  ;; TODO: Get image dimensions from room row in database (also use in room.html).
+  the blinds, and emits an instruction to draw it in its entirety."
+  [grouped-shades room]
   (let [blackout-levels (set (map #(get-in % [:shades "blackout" :level]) grouped-shades))
         screen-levels (set (map #(get-in % [:shades "screen" :level]) grouped-shades))]
     {:image          (cond
@@ -311,27 +310,26 @@
                        :else
                        "open")
      :top_left_y     0
-     :bottom_left_y  3024
+     :bottom_left_y  (:image_height room)
      :top_right_y    0
-     :bottom_right_y 3024
+     :bottom_right_y (:image_height room)
      :bottom_left_x  0
      :top_left_x     0
-     :bottom_right_x 4032
-     :top_right_x    4032}))
+     :bottom_right_x (:image_width room)
+     :top_right_x    (:image_width room)}))
 
 (defn shades-visible
   "Sends a list of image region updates required to make a room photo
   accurately reflect the current state of the shades, as long as the
   specified user has access to the specified room."
   [room-id user-id]
-  (let [valid-rooms (->> (db/list-rooms-for-user {:user user-id})
-                            (map :id)
-                            set)]
-    (when (valid-rooms room-id)
+  (let [valid-rooms (->> (db/list-rooms-for-user {:user user-id}))
+        room        (first (filter #(= (:id %) room-id) valid-rooms) )]
+    (when room
       (let [grouped-shades (->> (db/get-room-photo-boundaries {:room room-id})
                                 group-shades
                                 vals)
-            base           (base-image grouped-shades)]
+            base           (base-image grouped-shades room)]
         (concat [base]
                 (mapcat (partial regions-to-draw (:image base)) grouped-shades))))))
 
