@@ -96,7 +96,7 @@
 
 <p>
   {% for macro in macros %}
-  <button id="macro-{{macro.id}}-{{room.id}}" class="button is-primary is-small m-1{% if room.in-effect %} is-light{% endif %}" onclick="runRoomMacro('{{macro.id}}','{{room.id}}')">{{ macro.name }}</button>
+  <button id="macro-{{macro.id}}-{{room.id}}" class="button is-primary is-small m-1{% if macro.in-effect %} is-light{% endif %}" onclick="runRoomMacro('{{macro.id}}','{{room.id}}')">{{ macro.name }}</button>
   {% endfor %}
 </p>
 {% endif %}

@@ -88,13 +88,22 @@
                            :rooms rooms
                            :macros macros}))))
 
+(defn- promote-room-state
+  "Modifies a macro entry from the in-effect list so the specified
+  room's in-effect state is reflected at the top level, since the
+  macro buttons on the room page affect only that room."
+  [room-id macro]
+  (let [rooms (:rooms macro)]
+    (assoc macro :in-effect (get rooms room-id))))
+
 (defn room-page [{:keys [path-params session] :as request}]
-  (let [user-id (get-in session [:identity :id])
-        rooms   (db/list-rooms-for-user {:user user-id})
-        room-id (UUID/fromString (:id path-params))
-        room    (db/get-room {:id room-id})
-        macros  (db/list-macros-enabled-for-user-in-room {:user user-id
-                                                          :room room-id})]
+  (let [user-id   (get-in session [:identity :id])
+        rooms     (db/list-rooms-for-user {:user user-id})
+        room-id   (UUID/fromString (:id path-params))
+        room      (db/get-room {:id room-id})
+        macros    (db/list-macros-enabled-for-user-in-room {:user user-id
+                                                            :room room-id})
+        in-effect (ws/macros-in-effect macros user-id)]
     (if (and room (some #(= (:id %) room-id) rooms))
       (layout/render request "room.html"
                      (merge (select-keys request [:active?])
@@ -102,7 +111,7 @@
                              :user   (db/get-user {:id user-id})
                              :rooms  rooms
                              :room   room
-                             :macros macros}))
+                             :macros (map (partial promote-room-state room-id) in-effect)}))
       (layout/error-page {:status 404 :title "404 - Page not found"}))))
 
 (defn localize-timestamp
