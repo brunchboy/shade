@@ -35,3 +35,6 @@ body {
 .nowrap {
     white-space: nowrap;
 }
+.vertical-middle {
+    vertical-align: middle !important;
+}

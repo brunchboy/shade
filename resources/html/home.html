@@ -61,9 +61,9 @@
   <tbody>
     {% for macro in macros %}
     <tr>
-      <td><button id="macro-{{macro.id}}" class="button is-primary{% if macro.in-effect %} is-light{% endif %}" onclick="runMacro('{{macro.id}}')">{{ macro.name }}</button></td>
+      <td class="vertical-middle"><button id="macro-{{macro.id}}" class="button is-primary{% if macro.in-effect %} is-light{% endif %}" onclick="runMacro('{{macro.id}}')">{{ macro.name }}</button></td>
       {% for room in macro.room-buttons %}
-      <td>
+      <td class="vertical-middle">
         {% if room.id %}
         <button id="macro-{{macro.id}}-{{room.id}}" class="button is-primary is-small{% if room.in-effect %} is-light{% endif %}" onclick="runRoomMacro('{{macro.id}}','{{room.id}}')">{{ room.button }}</button>
         {% endif %}
