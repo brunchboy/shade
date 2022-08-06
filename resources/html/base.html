@@ -26,7 +26,7 @@
               <div id="nav-menu" class="navbar-menu">
                   <div class="navbar-start">
                       <a href="/" class="navbar-item{% ifequal page "home.html" %} is-active{%endifequal%}">Home</a>
-                      {% ifunequal page "login.html" %}
+                      {% if active? %}
                       <div class="navbar-item has-dropdown is-hoverable">
                         <a class="navbar-link">Rooms</a>
                         <div class="navbar-dropdown">
@@ -36,9 +36,13 @@
                         </div>
                       </div>
                       <a href="/status" class="navbar-item{% ifequal page "status.html" %} is-active{% endifequal %}">Status</a>
+                      {% endif %}
+                      {% ifequal page "login.html" %}
+                      <a href="/login" class="navbar-item is-active">Login</a>
+                      {% else %}
                       <a href="/profile" class="navbar-item{% ifequal page "profile.html" %} is-active{% endifequal %}">Profile</a>
                       <a href="/logout" class="navbar-item">Logout</a>
-                      {% endifunequal %}
+                      {% endifequal %}
                       <!-- <a href="/about" class="navbar-item{% ifequal page "about.html" %} is-active{% endifequal %}">About</a> -->
                   </div>
               </div>

@@ -19,11 +19,10 @@
 (defn home-page [request]
   (let [user-id (get-in request [:session :identity :id])
         macros  (db/list-macros-for-user {:user user-id})
-        rooms   (db/list-rooms-for-user {:user user-id})
-        active  (:is_active (db/get-user {:id user-id}))]
-    (layout/render request "home.html" {:macros (ws/macros-in-effect macros user-id)
-                                        :rooms  rooms
-                                        :active active})))
+        rooms   (db/list-rooms-for-user {:user user-id})]
+    (layout/render request "home.html" (merge (select-keys request [:active?])
+                                              {:macros (ws/macros-in-effect macros user-id)
+                                               :rooms  rooms}))))
 
 (defn macro-states [request]
   (let [user-id   (get-in request [:session :identity :id])
@@ -33,17 +32,18 @@
 (defn about-page [request]
   (let [user-id (get-in request [:session :identity :id])
         rooms   (db/list-rooms-for-user {:user user-id})]
-    (layout/render request "about.html" {:rooms rooms})))
+    (layout/render request "about.html" (select-keys request [:active?]))))
 
 (defn login-page [request]
-  (layout/render request "login.html"))
+  (layout/render request "login.html" (select-keys request [:active?])))
 
 (defn profile-page [request]
   (let [user-id (get-in request [:session :identity :id])
         rooms   (db/list-rooms-for-user {:user user-id})]
     (layout/render request "profile.html"
-                   {:user  (db/get-user {:id user-id})
-                    :rooms rooms})))
+                   (merge (select-keys request [:active?])
+                          {:user  (db/get-user {:id user-id})
+                           :rooms rooms}))))
 
 (defn room-page [{:keys [path-params session] :as request}]
   (let [user-id (get-in session [:identity :id])
@@ -52,10 +52,11 @@
         room    (db/get-room {:id room-id})]
     (if (and room (some #(= (:id %) room-id) rooms))
       (layout/render request "room.html"
-                     {:onload "draw();"
-                      :user  (db/get-user {:id user-id})
-                      :rooms rooms
-                      :room  room})
+                     (merge (select-keys request [:active?])
+                            {:onload "draw();"
+                             :user   (db/get-user {:id user-id})
+                             :rooms  rooms
+                             :room   room}))
       (layout/error-page {:status 404 :title "404 - Page not found"}))))
 
 (defn localize-timestamp
@@ -118,20 +119,21 @@
         user-id   (get-in request [:session :identity :id])
         rooms     (db/list-rooms-for-user {:user user-id})]
     (layout/render request "status.html"
-                   {:rooms             rooms
-                    :events            (format-events)
-                    :now               (localize-timestamp (jt/instant))
-                    :sun               (sun/position (jt/zoned-date-time) latitude longitude)
-                    :astronomical-dawn (sun/find-sunrise sun/astronomical-dawn-elevation)
-                    :sunrise           (sun/find-sunrise)
-                    :sunset            (sun/find-sunset)
-                    :connected?        (some? @ws/channel-open)
-                    :blinds-update     (format-timestamp-relative (:last-update @ws/shade-state))
-                    :battery-update    (format-timestamp-relative (:last-battery-update @ws/shade-state))
-                    :weather-update    (localize-timestamp (:time weather))
-                    :weather           weather
-                    :high              high
-                    :overcast?         (not (ws/not-overcast-enough?))})))
+                   (merge (select-keys request [:active?])
+                          {:rooms             rooms
+                           :events            (format-events)
+                           :now               (localize-timestamp (jt/instant))
+                           :sun               (sun/position (jt/zoned-date-time) latitude longitude)
+                           :astronomical-dawn (sun/find-sunrise sun/astronomical-dawn-elevation)
+                           :sunrise           (sun/find-sunrise)
+                           :sunset            (sun/find-sunset)
+                           :connected?        (some? @ws/channel-open)
+                           :blinds-update     (format-timestamp-relative (:last-update @ws/shade-state))
+                           :battery-update    (format-timestamp-relative (:last-battery-update @ws/shade-state))
+                           :weather-update    (localize-timestamp (:time weather))
+                           :weather           weather
+                           :high              high
+                           :overcast?         (not (ws/not-overcast-enough?))}))))
 
 (defn run-macro [{:keys [path-params session]}]
   (ws/run-macro (java.util.UUID/fromString (:id path-params)) (get-in session [:identity :id]))
@@ -220,10 +222,11 @@
                    (conj "New password must contain a special character that is not a letter or number."))]
     (if (seq errors)
       (layout/render request "profile.html"
-                     {:user         {:name  name
-                                     :email email}
-                      :new-password new-pw
-                      :error        (str/join " " errors)})
+                     (merge (select-keys request [:active?])
+                            {:user         {:name  name
+                                            :email email}
+                             :new-password new-pw
+                             :error        (str/join " " errors)}))
       (do
         (db/update-user! (merge user
                                 {:name  name
@@ -240,10 +243,18 @@
   (-> (redirect "/login")
       (assoc :session {})))
 
+(defn wrap-active [handler]
+  (fn [request]
+    (if-let [id (get-in request [:identity :id])]
+      (let [user (db/get-user {:id id})]
+        (handler (assoc request :active? (:is_active user))))
+      (handler request))))
+
 (defn home-routes []
   [""
    {:middleware [middleware/wrap-csrf
-                 middleware/wrap-formats]}
+                 middleware/wrap-formats
+                 wrap-active]}
    ["/" {:get home-page}]
    ["/about" {:get about-page}]
    ["/login" {:get  login-page

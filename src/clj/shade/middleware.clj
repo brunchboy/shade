@@ -56,6 +56,13 @@
     (let [current-url (:uri request)]
       (redirect (format "/login?next=%s" current-url)))))
 
+(defn active?
+  "Checks that the user making the request is both authenticated, and
+  marked as active."
+  [request]
+  (when (authenticated? request)
+    (boolean (:is_active (db/get-user (:identity request))))))
+
 (def rules
   "The access rules which control user access to routes."
   [{:uri     "/login" ; Login page can always be accessed.
@@ -64,10 +71,14 @@
     :handler (constantly true)}
    {:uri     "/about" ; About page can always be accessed.
     :handler (constantly true)}
+   {:uri "/"  ; The home page only requires a valid login.
+    :handler authenticated?}
+   {:uri "/profile"  ; The profile page also only requries a valid login.
+    :handler authenticated?}
    {:uri     "/ws" ; Need special header to open the web socket.
     :handler (fn [request] (= (get-in request [:headers "x-shade-token"]) (env :websocket-token)))}
-   {:uri     "*" ; Everything else needs a valid login to access.
-    :handler authenticated?}])
+   {:uri     "*" ; Everything else needs an active and valid login to access.
+    :handler active?}])
 
 (defn wrap-auth [handler]
   (let [backend (session-backend)]
