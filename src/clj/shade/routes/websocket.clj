@@ -164,8 +164,10 @@
 
 (defn run-macro
   "Loads the entries available to the specified user of the specified
-  macro, and sends instructions to configure the blinds accordingly."
-  [macro-id user-id]
+  macro, and sends instructions to configure the blinds accordingly.
+  If `room-id` is not `nil`, only entries for blinds in that room
+  will be used."
+  [macro-id user-id room-id]
   (let [entries (db/get-macro-entries {:macro macro-id
                                        :user  user-id})]
     (when-let [ch @channel-open]
@@ -173,7 +175,9 @@
                      :blinds (mapv (fn [entry]
                                      {:id    (:controller_id entry)
                                       :level (narrow-macro-level entry)})
-                                   entries)})
+                                   (cond->> entries
+                                     room-id
+                                     (filter #(= (:room %) room-id))))})
                ch)
       (doseq [entry entries]
         (swap! shade-state update-in [:shades (:shade entry)]
@@ -181,8 +185,20 @@
                  (assoc shade :moving? (not= (:level entry) (:level shade))))))
       (tickle-state-updater))))
 
-;; TODO: Also add macro-room entries for individual rooms which are in
-;; the right position for the macro.
+(defn- in-effect-by-room
+  "Given the current shade state and a list of macro entries, builds a
+  map whose keys are the room IDs present in the macro entries, and
+  whose values true when all blinds in that room for which macro
+  entries exist are currently at the level desired."
+  [state entries]
+  (let [rooms (set (map :room entries))]
+    (into {}
+          (map (fn [room]
+                 [room (every? #(= (narrow-macro-level %)
+                                   (get-in state [(:shade %) :level]))
+                               (filter #(= (:room %) room) entries))])
+               rooms))))
+
 (defn macros-in-effect
   "Loads the entries available to the specified user for each specified
   macro and checks whether the blinds are currently at the level
@@ -195,7 +211,8 @@
             (let [entries (db/get-macro-entries {:macro (:id macro)
                                                  :user  user-id})]
               (assoc macro :in-effect (every? #(= (narrow-macro-level %)
-                                                  (get-in state [(:shade %) :level])) entries))))
+                                                  (get-in state [(:shade %) :level])) entries)
+                     :rooms (in-effect-by-room state entries))))
           macros)))
 
 (defn expand-shade-level

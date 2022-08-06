@@ -6,6 +6,7 @@
    [shade.sun :as sun]
    [shade.weather :as weather]
    [shade.routes.websocket :as ws]
+   [clojure.set :as set]
    [clojure.string :as str]
    [shade.middleware :as middleware]
    [buddy.auth :as auth]
@@ -16,23 +17,61 @@
    [ring.util.http-response :as response]
    [ring.util.json-response :refer [json-response]]))
 
+(defn build-macro-rooms
+  "Creates a list describing the rooms which are affected by macros
+  available on a page. Will be `nil` if there are no macros affecting
+  more than one room. Otherwise, contains a list of maps holding the
+  room names (for explanation in a key at the bottom of the page), and
+  abbreviations for use on small buttons to run the macro just for
+  that room."
+  [rooms in-effect]
+  (when (some #(> % 1) (map #(count (:rooms %)) in-effect))
+    (let [affected (apply set/union (map #(set (keys (:rooms %))) in-effect))]
+      (map (fn [room]
+             (let [room-name (:name room)]
+               {:name   room-name
+                :button (->> (str/split room-name #"\s+")
+                             (map first)
+                             (apply str)
+                             clojure.string/upper-case)
+                :id     (:id room)}))
+           (filter #(affected (:id %)) rooms)))))
+
+(defn- merge-macro-buttons
+  "Adds information to a macro entry from the in-effect list making it
+  easy for the room template to iterate over and create buttons for
+  sending macros to single rooms. Returns the entry unchanged if there
+  are no macros which affect multiple rooms."
+  [macro-rooms macro]
+  (if (empty? macro-rooms)
+    macro
+    (let [rooms (:rooms macro)]
+      (assoc macro :room-buttons
+             (for [room macro-rooms]
+               (when (contains? rooms (:id room))
+                 (assoc room :in-effect (get rooms (:id room)))))))))
+
 (defn home-page [request]
-  (let [user-id (get-in request [:session :identity :id])
-        macros  (db/list-macros-for-user {:user user-id})
-        rooms   (db/list-rooms-for-user {:user user-id})]
+  (let [user-id     (get-in request [:session :identity :id])
+        macros      (db/list-macros-for-user {:user user-id})
+        rooms       (db/list-rooms-for-user {:user user-id})
+        in-effect   (ws/macros-in-effect macros user-id)
+        macro-rooms (build-macro-rooms rooms in-effect)]
     (layout/render request "home.html" (merge (select-keys request [:active?])
-                                              {:macros (ws/macros-in-effect macros user-id)
-                                               :rooms  rooms}))))
+                                              {:macros      (map (partial merge-macro-buttons macro-rooms) in-effect)
+                                               :rooms       rooms
+                                               :macro-rooms macro-rooms}))))
 
 (defn macro-states [request]
   (let [user-id   (get-in request [:session :identity :id])
         macros    (db/list-macros-for-user {:user user-id})]
-    (response/ok (map #(select-keys % [:id :in-effect]) (ws/macros-in-effect macros user-id)))))
+    (response/ok (map #(select-keys % [:id :in-effect :rooms]) (ws/macros-in-effect macros user-id)))))
 
 (defn about-page [request]
   (let [user-id (get-in request [:session :identity :id])
         rooms   (db/list-rooms-for-user {:user user-id})]
-    (layout/render request "about.html" (select-keys request [:active?]))))
+    (layout/render request "about.html" (merge (select-keys request [:active?])
+                                               {:rooms rooms}))))
 
 (defn login-page [request]
   (layout/render request "login.html" (select-keys request [:active?])))
@@ -135,8 +174,9 @@
                            :high              high
                            :overcast?         (not (ws/not-overcast-enough?))}))))
 
-(defn run-macro [{:keys [path-params session]}]
-  (ws/run-macro (java.util.UUID/fromString (:id path-params)) (get-in session [:identity :id]))
+(defn run-macro [{:keys [path-params session params]}]
+  (ws/run-macro (java.util.UUID/fromString (:id path-params)) (get-in session [:identity :id])
+                (when-let [room (:room params)] (java.util.UUID/fromString room)))
   (json-response {:action "Macro run"}))
 
 (defn shades-visible [{:keys [path-params session]}]

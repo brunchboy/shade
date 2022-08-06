@@ -8,12 +8,28 @@
     req.send();
   }
 
+  function runRoomMacro(macroId, roomId) {
+    const req = new XMLHttpRequest();
+    req.open("GET", "run/" + macroId + "?room=" + roomId);
+    req.send();
+  }
+
   function updateMacroButton(entry) {
     const button = document.getElementById("macro-" + entry.id);
     if (entry["in-effect"]) {
       button.classList.add("is-light");
     } else {
       button.classList.remove("is-light");
+    }
+    for (const room in entry.rooms) {
+      const button = document.getElementById("macro-" + entry.id + "-" + room);
+      if (button) {
+        if (entry.rooms[room]) {
+          button.classList.add("is-light");
+        } else {
+          button.classList.remove("is-light");
+        }
+      }
     }
   }
 
@@ -36,14 +52,38 @@
 <h2 class="subtitle">Set Groups of Blinds to Preset Locations.</h2>
 
 <table class="table">
+  {% if macro-rooms|not-empty %}
+  <thead>
+    <th>Everywhere</th>
+    <th colspan="{{macro-rooms|count}}">Rooms</th>
+  </thead>
+  {% endif %}
   <tbody>
     {% for macro in macros %}
     <tr>
       <td><button id="macro-{{macro.id}}" class="button is-primary{% if macro.in-effect %} is-light{% endif %}" onclick="runMacro('{{macro.id}}')">{{ macro.name }}</button></td>
+      {% for room in macro.room-buttons %}
+      <td>
+        {% if room.id %}
+        <button id="macro-{{macro.id}}-{{room.id}}" class="button is-primary is-small{% if room.in-effect %} is-light{% endif %}" onclick="runRoomMacro('{{macro.id}}','{{room.id}}')">{{ room.button }}</button>
+        {% endif %}
+      </td>
+      {% endfor %}
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
+{% if macro-rooms|not-empty %}
+<div class="box">
+<h2 class="title is-5">Rooms Key</h2>
+<p>
+{% for room in macro-rooms %}
+<span class="tag is-primary">{{room.button}}</span>&nbsp;<span class="pr-4">{{room.name|replace: :&nbsp;|safe}}</span>{% endfor %}
+</p>
+</div>
+{% endif %}
+
 {% else %}
 <h1 class="title">Welcome</h1>
 <h2 class="subtitle">Valid but Inactive Account</h2>
