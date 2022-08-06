@@ -92,14 +92,17 @@
   (let [user-id (get-in session [:identity :id])
         rooms   (db/list-rooms-for-user {:user user-id})
         room-id (UUID/fromString (:id path-params))
-        room    (db/get-room {:id room-id})]
+        room    (db/get-room {:id room-id})
+        macros  (db/list-macros-enabled-for-user-in-room {:user user-id
+                                                          :room room-id})]
     (if (and room (some #(= (:id %) room-id) rooms))
       (layout/render request "room.html"
                      (merge (select-keys request [:active?])
                             {:onload "draw();"
                              :user   (db/get-user {:id user-id})
                              :rooms  rooms
-                             :room   room}))
+                             :room   room
+                             :macros macros}))
       (layout/error-page {:status 404 :title "404 - Page not found"}))))
 
 (defn localize-timestamp

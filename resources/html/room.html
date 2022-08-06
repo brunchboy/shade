@@ -42,6 +42,40 @@
 
   updateShadeStates();
   setInterval(updateShadeStates, 200);
+
+  function runRoomMacro(macroId, roomId) {
+    const req = new XMLHttpRequest();
+    req.open("GET", "run/" + macroId + "?room=" + roomId);
+    req.send();
+  }
+
+  function updateMacroButton(entry) {
+    for (const room in entry.rooms) {
+      const button = document.getElementById("macro-" + entry.id + "-" + room);
+      if (button) {
+        if (entry.rooms[room]) {
+          button.classList.add("is-light");
+        } else {
+          button.classList.remove("is-light");
+        }
+      }
+    }
+  }
+
+  function macroStateListener() {
+    const states = JSON.parse(this.responseText);
+    states.forEach(entry => updateMacroButton(entry));
+  }
+
+  function updateMacroStates() {
+    const req = new XMLHttpRequest();
+    req.addEventListener("load", macroStateListener);
+    req.open("GET", "/macro-states");
+    req.send();
+  }
+
+  setInterval(updateMacroStates, 900);
+
 </script>
 
 <div style="display:none;">
@@ -55,5 +89,16 @@
   <canvas id="canvas" class="has-ratio" width="{{room.image_width}}" height="{{room.image_height}}">
   </canvas>
 </figure>
+
+{% if macros|not-empty %}
+<h2 class="title is-5 mt-5">Macros</h2>
+<h3 class="subtitle is-6">Move Groups of Blinds.</h3>
+
+<p>
+  {% for macro in macros %}
+  <button id="macro-{{macro.id}}-{{room.id}}" class="button is-primary is-small{% if room.in-effect %} is-light{% endif %}" onclick="runRoomMacro('{{macro.id}}','{{room.id}}')">{{ macro.name }}</button>
+  {% endfor %}
+</p>
+{% endif %}
 
 {% endblock %}

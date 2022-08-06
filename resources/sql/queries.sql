@@ -158,6 +158,21 @@ SELECT m.*, count(s)
  GROUP BY m.id
  ORDER BY m.name
 
+-- :name list-macros-enabled-for-user-in-room :? :*
+-- :doc retrieves all macro records with any entries available to the specified user which affect the specified room, if user has enabled the macro
+SELECT m.*, count(s)
+  FROM macros m
+  INNER JOIN macro_entries me on m.id = me.macro
+  INNER JOIN shades s ON me.shade = s.id
+  INNER JOIN users_rooms ur on ur.room = s.room
+  INNER JOIN users_macros um on um.macro = m.id
+ WHERE ur.user = :user
+   AND um.user = :user
+ GROUP BY m.id
+ ORDER BY m.name
+
+
+
 -- :name create-user-macro! :! :n
 -- :doc marks a user as having enabled the specified macro
 INSERT INTO users_macros ("user", macro)
