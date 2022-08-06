@@ -92,11 +92,11 @@
 
 {% if macros|not-empty %}
 <h2 class="title is-5 mt-5">Macros</h2>
-<h3 class="subtitle is-6">Move Groups of Blinds.</h3>
+<h3 class="subtitle is-6">Move Groups of Shades.</h3>
 
 <p>
   {% for macro in macros %}
-  <button id="macro-{{macro.id}}-{{room.id}}" class="button is-primary is-small{% if room.in-effect %} is-light{% endif %}" onclick="runRoomMacro('{{macro.id}}','{{room.id}}')">{{ macro.name }}</button>
+  <button id="macro-{{macro.id}}-{{room.id}}" class="button is-primary is-small m-1{% if room.in-effect %} is-light{% endif %}" onclick="runRoomMacro('{{macro.id}}','{{room.id}}')">{{ macro.name }}</button>
   {% endfor %}
 </p>
 {% endif %}
