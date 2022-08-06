@@ -51,6 +51,7 @@
 <h1 class="title">Macros</h1>
 <h2 class="subtitle">Move Groups of Blinds.</h2>
 
+{% if macros|not-empty %}
 <table class="table">
   {% if macro-rooms|not-empty %}
   <thead>
@@ -84,6 +85,12 @@
 </span>
 {% endfor %}
 </p>
+</div>
+{% endif %}
+{% else %}
+<div class="box">
+  <p>You have no macros available. You can make them visible on your
+    <a href="profile">Profile</a>.</p>
 </div>
 {% endif %}
 

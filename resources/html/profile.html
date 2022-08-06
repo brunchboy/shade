@@ -69,7 +69,12 @@
     {% for macro in macros %}
     <tr>
       <td>{{macro.name}}</td>
-      <td><input type="checkbox"{% if macro.enabled %} checked="checked"{% endif %}} onclick=setMacroVisibility(this,'{{user.id}}','{{macro.id}}')>
+      <td>
+        <label class="switch">
+          <input type="checkbox"{% if macro.enabled %} checked="checked"{% endif %}} onclick=setMacroVisibility(this,'{{user.id}}','{{macro.id}}')>
+          <span class="toggle round"></span>
+        </label>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
