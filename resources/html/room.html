@@ -45,7 +45,7 @@
 
   function runRoomMacro(macroId, roomId) {
     const req = new XMLHttpRequest();
-    req.open("GET", "run/" + macroId + "?room=" + roomId);
+    req.open("GET", "/run/" + macroId + "?room=" + roomId);
     req.send();
   }
 

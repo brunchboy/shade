@@ -4,13 +4,13 @@
 <script type="text/javascript">
   function runMacro(id) {
     const req = new XMLHttpRequest();
-    req.open("GET", "run/" + id);
+    req.open("GET", "/run/" + id);
     req.send();
   }
 
   function runRoomMacro(macroId, roomId) {
     const req = new XMLHttpRequest();
-    req.open("GET", "run/" + macroId + "?room=" + roomId);
+    req.open("GET", "/run/" + macroId + "?room=" + roomId);
     req.send();
   }
 
@@ -41,7 +41,7 @@
   function updateMacroStates() {
     const req = new XMLHttpRequest();
     req.addEventListener("load", macroStateListener);
-    req.open("GET", "macro-states");
+    req.open("GET", "/macro-states");
     req.send();
   }
 
