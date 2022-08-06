@@ -15,7 +15,9 @@
    [java-time :as jt]
    [ring.util.response :refer [redirect content-type]]
    [ring.util.http-response :as response]
-   [ring.util.json-response :refer [json-response]]))
+   [ring.util.json-response :refer [json-response]])
+  (:import
+   (java.util UUID)))
 
 (defn build-macro-rooms
   "Creates a list describing the rooms which are affected by macros
@@ -53,7 +55,7 @@
 
 (defn home-page [request]
   (let [user-id     (get-in request [:session :identity :id])
-        macros      (db/list-macros-for-user {:user user-id})
+        macros      (db/list-macros-enabled-for-user {:user user-id})
         rooms       (db/list-rooms-for-user {:user user-id})
         in-effect   (ws/macros-in-effect macros user-id)
         macro-rooms (build-macro-rooms rooms in-effect)]
@@ -64,7 +66,7 @@
 
 (defn macro-states [request]
   (let [user-id   (get-in request [:session :identity :id])
-        macros    (db/list-macros-for-user {:user user-id})]
+        macros    (db/list-macros-enabled-for-user {:user user-id})]
     (response/ok (map #(select-keys % [:id :in-effect :rooms]) (ws/macros-in-effect macros user-id)))))
 
 (defn about-page [request]
@@ -78,16 +80,18 @@
 
 (defn profile-page [request]
   (let [user-id (get-in request [:session :identity :id])
-        rooms   (db/list-rooms-for-user {:user user-id})]
+        rooms   (db/list-rooms-for-user {:user user-id})
+        macros (db/list-macros-for-user {:user user-id})]
     (layout/render request "profile.html"
                    (merge (select-keys request [:active?])
                           {:user  (db/get-user {:id user-id})
-                           :rooms rooms}))))
+                           :rooms rooms
+                           :macros macros}))))
 
 (defn room-page [{:keys [path-params session] :as request}]
   (let [user-id (get-in session [:identity :id])
         rooms   (db/list-rooms-for-user {:user user-id})
-        room-id (java.util.UUID/fromString (:id path-params))
+        room-id (UUID/fromString (:id path-params))
         room    (db/get-room {:id room-id})]
     (if (and room (some #(= (:id %) room-id) rooms))
       (layout/render request "room.html"
@@ -175,15 +179,30 @@
                            :overcast?         (not (ws/not-overcast-enough?))}))))
 
 (defn run-macro [{:keys [path-params session params]}]
-  (ws/run-macro (java.util.UUID/fromString (:id path-params)) (get-in session [:identity :id])
-                (when-let [room (:room params)] (java.util.UUID/fromString room)))
+  (ws/run-macro (UUID/fromString (:id path-params)) (get-in session [:identity :id])
+                (when-let [room (:room params)] (UUID/fromString room)))
   (json-response {:action "Macro run"}))
+
+(defn set-macro-visibility [{:keys [path-params session]}]
+  (let [user                               (:identity session)
+        {:keys [macro-id user-id visible]} path-params
+        user-id                            (UUID/fromString user-id)
+        macro-id                           (UUID/fromString macro-id)]
+    (if (or (= user-id (:id user))
+            (:admin user))
+      ;; User is allowed to make this change.
+      (do
+        (if (Boolean/valueOf visible)
+          (db/create-user-macro! {:user user-id :macro macro-id})   ; Enabling this macro.
+          (db/delete-user-macro! {:user user-id :macro macro-id}))  ; Disabling it.
+        (json-response {:action "Visibility updated."}))
+      ;; User is not allowed to make this change
+      (layout/error-page {:status 401 :title "401 - Unauthorized"}))))
 
 (defn shades-visible [{:keys [path-params session]}]
   (let [user-id (get-in session [:identity :id])
-        room-id (java.util.UUID/fromString (:room path-params))]
+        room-id (UUID/fromString (:room path-params))]
     (json-response (ws/shades-visible room-id user-id))))
-
 
 
 (defn login-authenticate
@@ -305,5 +324,6 @@
                 :post profile-update}]
    ["/room/:id" {:get room-page}]
    ["/run/:id" {:get run-macro}]
+   ["/set-macro-visibility/:macro-id/:user-id/:visible" {:get set-macro-visibility}]
    ["/shades-visible/:room" {:get shades-visible}]
    ["/status" {:get status-page}]])

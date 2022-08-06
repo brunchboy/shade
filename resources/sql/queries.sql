@@ -134,7 +134,7 @@ SELECT * FROM macros
 
 -- :name list-macros-for-user :? :*
 -- :doc retrieves all macro records with any entries available to the specified user
-SELECT m.*, count(s)
+SELECT m.*, count(s), exists (select * from users_macros um where um.user = :user and um.macro = m.id) as enabled
   FROM macros m
   INNER JOIN macro_entries me on m.id = me.macro
   INNER JOIN shades s ON me.shade = s.id
@@ -143,6 +143,31 @@ SELECT m.*, count(s)
  WHERE ur.user = :user
  GROUP BY m.id
  ORDER BY m.name
+
+-- :name list-macros-enabled-for-user :? :*
+-- :doc retrieves all macro records with any entries available to the specified user, if user has enabled the macro
+SELECT m.*, count(s)
+  FROM macros m
+  INNER JOIN macro_entries me on m.id = me.macro
+  INNER JOIN shades s ON me.shade = s.id
+  INNER JOIN rooms r ON s.room = r.id
+  INNER JOIN users_rooms ur on ur.room = r.id
+  INNER JOIN users_macros um on um.macro = m.id
+ WHERE ur.user = :user
+   AND um.user = :user
+ GROUP BY m.id
+ ORDER BY m.name
+
+-- :name create-user-macro! :! :n
+-- :doc marks a user as having enabled the specified macro
+INSERT INTO users_macros ("user", macro)
+VALUES (:user, :macro)
+
+-- :name delete-user-macro! :! :n
+-- :doc marks a user as having disabled the specified macro
+DELETE FROM users_macros
+ WHERE "user" = :user
+   AND macro = :macro
 
 -- :name delete-macro! :! :n
 -- :doc deletes a macro record given the id
