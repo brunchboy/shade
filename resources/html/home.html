@@ -49,7 +49,7 @@
 </script>
 
 <h1 class="title">Macros</h1>
-<h2 class="subtitle">Set Groups of Blinds to Preset Locations.</h2>
+<h2 class="subtitle">Move Groups of Blinds.</h2>
 
 <table class="table">
   {% if macro-rooms|not-empty %}
@@ -79,7 +79,10 @@
 <h2 class="title is-5">Rooms Key</h2>
 <p>
 {% for room in macro-rooms %}
-<span class="tag is-primary">{{room.button}}</span>&nbsp;<span class="pr-4">{{room.name|replace: :&nbsp;|safe}}</span>{% endfor %}
+<span class="nowrap">
+  <span class="tag is-primary">{{room.button}}</span> <span class="pr-4">{{room.name}}</span>
+</span>
+{% endfor %}
 </p>
 </div>
 {% endif %}
