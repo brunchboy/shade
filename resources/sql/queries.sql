@@ -229,18 +229,13 @@ SELECT me.*, s.controller_id, s.close_min, s.open_max, r.id as room, r.name as r
 
 -- :name create-macro-entry! :! :n
 -- :doc creates a new macro entry record
-INSERT INTO macro_entries (id, macro, shade, level)
-VALUES (gen_random_uuid(), :macro, :shade, :level)
+INSERT INTO macro_entries (macro, shade, level)
+VALUES (:macro, :shade, :level)
 
 -- :name update-macro-entry! :! :n
 -- :doc updates the level of an existing macro entry record
 UPDATE macros
    SET level = :level
- WHERE id = :id
-
--- :name delete-macro-entry! :! :n
--- :doc deletes a macro entry record given the id
-DELETE FROM macro_entriess
  WHERE id = :id
 
 
@@ -310,10 +305,16 @@ SELECT sbe.*, s.controller_id, s.close_min, s.open_max
 
 -- :name create-sunblock-group-entry! :! :n
 -- :doc creates a new sunblock group entry record
-INSERT INTO sunblock_group_entries (id, sunblock_group, shade)
-VALUES (gen_random_uuid(), :sunblock_group, :shade)
+INSERT INTO sunblock_group_entries (sunblock_group, shade)
+VALUES (:sunblock_group, :shade)
 
 -- :name delete-sunblock-group-entry! :! :n
--- :doc deletes a sunbloc _group entry record given the id
-DELETE FROM sunblock_group_entriess
- WHERE id = :id
+-- :doc deletes a sunblock_group entry record given the sunblock group and shade
+DELETE FROM sunblock_group_entries
+ WHERE sunblock_group = :sunblock_group
+   AND shade = :shade
+
+-- :name delete-sunblock-group-entries! :! :n
+-- :doc deletes al sunblock_group entries for a sunblock group, used when editing the group
+DELETE FROM sunblock_group_entries
+ WHERE sunblock_group = :sunblock_group
