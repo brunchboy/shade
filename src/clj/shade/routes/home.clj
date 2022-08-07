@@ -227,10 +227,16 @@
       (layout/error-page {:status 404 :title "404 - Macro not found"})
       (layout/render request "macro.html"
                      (merge (select-keys request [:active?])
-                            {:user   (db/get-user {:id user-id})
-                             :rooms  rooms
-                             :macro  macro
-                             :shades shades})))))
+                            {:user    (db/get-user {:id user-id})
+                             :rooms   rooms
+                             :macro   macro
+                             :shades  shades
+                             :preview (reduce (fn [acc shade]
+                                                (if-let [level (:macro-level shade)]
+                                                  (assoc acc (:id shade) level)
+                                                  acc))
+                                              {}
+                                              shades)})))))
 
 (defn- merge-macro-form
   "Updates a list of current shade positions to reflect what values were
@@ -430,6 +436,11 @@
   (-> (redirect "/login")
       (assoc :session {})))
 
+(defn set-shade-levels
+  [{:keys [params]}]
+  (ws/run-preview params)
+  (json-response {:action "Shade levels set."}))
+
 (defn wrap-active [handler]
   (fn [request]
     (if-let [id (get-in request [:identity :id])]
@@ -459,5 +470,6 @@
    ["/room/:id" {:get room-page}]
    ["/run/:id" {:get run-macro}]
    ["/set-macro-visibility/:macro-id/:user-id/:visible" {:get set-macro-visibility}]
+   ["/set-shade-levels" {:post set-shade-levels}]
    ["/shades-visible/:room" {:get shades-visible}]
    ["/status" {:get status-page}]])

@@ -182,8 +182,24 @@
       (doseq [entry entries]
         (swap! shade-state update-in [:shades (:shade entry)]
                (fn [shade]
-                 (assoc shade :moving? (not= (:level entry) (:level shade))))))
+                 (assoc shade :moving? (not= (narrow-macro-level entry) (:level shade))))))
       (tickle-state-updater))))
+
+(defn run-preview
+  "Sets the shades mentioned in the preview request to the desired levels."
+  [preview]
+  (when-let [ch @channel-open]
+    (when-not (empty? preview)
+      (let [ids    (map (fn [k] (java.util.UUID/fromString (name k))) (keys preview))
+            shades (db/get-shades {:ids ids})]
+        (ws/send (str {:action :set-levels
+                       :blinds (mapv (fn [shade]
+                                       (let [leveled (assoc shade :level
+                                                            (Long/valueOf (get preview (-> shade :id str keyword))))]
+                                         {:id    (:controller_id shade)
+                                          :level (narrow-macro-level leveled)}))
+                                     shades)})
+                 ch)))))  ; No need to worry about tickling the state updater, user is focused on defining a macro.
 
 (defn- in-effect-by-room
   "Given the current shade state and a list of macro entries, builds a

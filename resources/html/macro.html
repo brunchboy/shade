@@ -1,6 +1,44 @@
 {% extends "base.html" %}
 {% block content %}
 
+<script type="text/javascript">
+  var preview = {{preview|json|safe}};
+
+  function setShadeLevels(shades) {
+    const req = new XMLHttpRequest();
+    req.open("post", "/set-shade-levels");
+    req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    req.setRequestHeader("X-CSRF-Token", "{{csrf-token}}");
+    req.send(JSON.stringify(shades));
+  }
+
+  function sliderChanged(shade, level) {
+    if (shade in preview) {
+      preview[shade] = level;
+      if (document.getElementById("preview-active").checked) {
+        setShadeLevels(preview);
+      }
+    }
+  }
+
+  function enabledChanged(shade, enabled) {
+    if (enabled) {
+      preview[shade] = document.getElementById("level-" + shade).value;
+      if (document.getElementById("preview-active").checked) {
+        setShadeLevels(preview);
+      }
+    } else {
+      delete preview[shade];
+    }
+  }
+
+  function previewActiveChanged(active) {
+    if (active) {
+      setShadeLevels(preview);
+    }
+  }
+</script>
+
 {% if error %}
 <div class="notification is-danger">{{error}}</div>
 {% endif %}
@@ -42,16 +80,18 @@
       <td class="vertical-middle mr-0 pr-0">Closed</td>
       <td class="vertical-middle mx-0 px-1">
         <div class="slidecontainer">
-          <input type="range" name="level-{{shade.id}}" min="0" max="100"
+          <input type="range" name="level-{{shade.id}}" id="level-{{shade.id}}" min="0" max="100"
                  value="{% if shade.macro-level %}{{shade.macro-level}}{% else %}{{shade.level}}{% endif %}"
-                 class="slider" {% if not user.admin %}disabled{% endif %} >
+                 class="slider" {% if not user.admin %}disabled{% endif %}
+                 onchange="sliderChanged('{{shade.id}}',this.value)">
         </div>
       </td>
       <td class="vertical-middle ml-0 pl-0">Open</td>
       <td class="vertical-middle field">
         <label class="switch">
           <input name="enabled-{{shade.id}}" type="checkbox"{% if shade.macro-level %} checked="checked"{% endif %}
-                 {% if not user.admin %} disabled{% endif %}>
+                 {% if not user.admin %} disabled{% endif %}
+                 onchange="enabledChanged('{{shade.id}}',this.checked)">
           <span class="toggle round"></span>
         </label>
       </td>
@@ -65,7 +105,15 @@
       {% if user.admin %}
       <input class="button is-primary mr-6" type="submit" value="{% if macro.id %}Save{% else %}Create{% endif %}" />
       {% endif %}
-      <a class="button is-link" href="/profile">Cancel</a>
+      <a class="button is-link mr-6" href="/profile">Cancel</a>
+      <span class="vertical-middle">Actively Preview on the Shades?
+        <label class="switch ml-2">
+          <input name="preview-active" id="preview-active"
+                 type="checkbox" {% if not user.admin %} disabled{% endif %}
+                 onchange="previewActiveChanged(this.checked)">
+          <span class="toggle round"></span>
+        </label>
+      </span>
     </div>
   </div>
 </form>

@@ -83,6 +83,8 @@
     :handler authenticated?}
    {:uri "/delete-macro/*"  ; Deleting a macro requires administrator privileges.
     :handler admin?}
+   {:uri "/set-shade-levels"  ; Setting arbitrary shade levels also requires administrator privileges.
+    :handler admin?}
    {:uri     "/ws" ; Need special header to open the web socket.
     :handler (fn [request] (= (get-in request [:headers "x-shade-token"]) (env :websocket-token)))}
    {:uri     "*" ; Everything else needs an active and valid login to access.
@@ -100,7 +102,8 @@
       wrap-auth
       wrap-flash
       (wrap-defaults (-> site-defaults
-                         (assoc-in [:security :anti-forgery] false)  ; TODO: Why can't I enable this?
+                         ;; Anti-forgery is already active from somewhere, turning it on again breaks everything.
+                         (assoc-in [:security :anti-forgery] false)
                          (assoc-in [:session :store] (jdbc-store db/*db*))
                          (assoc-in [:session :timeout] Integer/MAX_VALUE)
                          (assoc-in [:session :cookie-attrs] {:max-age   Integer/MAX_VALUE

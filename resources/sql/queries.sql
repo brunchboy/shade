@@ -108,6 +108,11 @@ select shades.* from shades
 SELECT * FROM shades
  WHERE id = :id
 
+-- :name get-shades :? :*
+-- :doc retrieves multiple shade records given a list of ids
+SELECT * FROM shades
+ WHERE id in (:v*:ids)
+
 -- :name get-shade-by-controller-id :? :1
 -- :doc retrieves a shade record given the controller id
 SELECT * FROM shades
