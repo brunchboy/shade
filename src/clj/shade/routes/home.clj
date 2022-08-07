@@ -9,10 +9,10 @@
    [clojure.set :as set]
    [clojure.string :as str]
    [shade.middleware :as middleware]
-   [buddy.auth :as auth]
    [shade.auth :as shade-auth]
    [buddy.hashers :as hashers]
    [java-time :as jt]
+   [conman.core :as conman]
    [ring.util.response :refer [redirect content-type]]
    [ring.util.http-response :as response]
    [ring.util.json-response :refer [json-response]])
@@ -298,7 +298,7 @@
                                       :name name}
                              :shades (merge-macro-form (ws/shades-for-macro-editor nil) entries)
                              :error  (str/join " " errors)}))
-      (do
+      (conman/with-transaction [db/*db*]
         (if macro-id
           (do  ; Updating an existing macro
             (db/update-macro! {:id   macro-id
