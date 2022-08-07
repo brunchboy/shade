@@ -86,8 +86,11 @@ UPDATE shades
  WHERE id = :id
 
 -- :name list-shades :? :*
--- :doc retrieves all shade records
-SELECT * FROM shades
+-- :doc retrieves all shade records, augmenting them with the name of the room the shade is found in
+SELECT s.*, r.name as room_name
+ FROM shades s
+ INNER JOIN rooms r ON s.room = r.id
+ ORDER BY room_name, s.kind, s.name
 
 -- :name list-shades-by-room :? :*
 -- :doc retrieves all shades in a given room
@@ -116,10 +119,21 @@ DELETE FROM shades
  WHERE id = :id
 
 
--- :name create-macro! :! :n
+-- :name create-macro! :! :1
 -- :doc creates a new macro record
 INSERT INTO macros (id, name)
 VALUES (gen_random_uuid(), :name)
+RETURNING id;
+
+-- :name get-macro :? :1
+-- :doc gets a single macro record given the id
+SELECT * from macros
+ WHERE id = :id
+
+-- :name get-macro-by-name :? :1
+-- :doc gets a single macro record given the id
+SELECT * from macros
+ WHERE name = :name
 
 -- :name update-macro! :! :n
 -- :doc updates an existing macro record
@@ -188,6 +202,19 @@ DELETE FROM users_macros
 -- :doc deletes a macro record given the id
 DELETE FROM macros
  WHERE id = :id
+
+-- :name delete-macro-entries! :! :n
+-- :doc deletes all entries associated with a macro (for admin macro editing)
+DELETE FROM macro_entries
+ WHERE macro = :macro
+
+-- :name get-all-macro-entries :? :*
+-- :doc retrieves all macro entries for the specified macro (for admin macro editing)
+SELECT me.*, s.controller_id, s.close_min, s.open_max, r.id as room, r.name as room_name
+  FROM macro_entries me
+  INNER JOIN shades s ON me.shade = s.id
+  INNER JOIN rooms r ON s.room = r.id
+ WHERE me.macro = :macro
 
 
 -- :name get-macro-entries :? :*

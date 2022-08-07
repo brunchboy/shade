@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if error %}
+<div class="notification is-danger">{{error}}</div>
+{% endif %}
+
+{% if user.admin %}
+<h1 class="title">{% if macro.id %}Edit{% else %}Create{% endif %} Macro</h1>
+<h2 class="subtitle">Select shades to include and their desired levels.</h2>
+{% else %}
+<h1 class="title">View Macro</h1>
+<h2 class="subtitle">Lists shades to include and their desired levels.</h2>
+{% endif %}
+
+<form method="post">
+  {% csrf-field %}
+  <div class="field">
+    <label class="label">Name</label>
+    <div class="control">
+      <input class="input" type="text" name="name" value="{{macro.name}}" {% if not user.admin %}disabled{% endif %} />
+    </div>
+  </div>
+  <table class="table">
+  <thead>
+    <th>Shade</th>
+    <th>Battery</th>
+    <th>Room</th>
+    <th></th>
+    <th>Position</th>
+    <th></th>
+    <th>Included?</th>
+  </thead>
+  <tbody>
+    {% for shade in shades %}
+    <tr>
+      <td class="vertical-middle">{{shade.name}}</td>
+      <td class="vertical-middle">
+        {% if shade.battery-level >= 0 %}{{shade.battery-level}}%{% endif %}
+      </td>
+      <td class="vertical-middle">{{shade.room_name}}</td>
+      <td class="vertical-middle mr-0 pr-0">Closed</td>
+      <td class="vertical-middle mx-0 px-1">
+        <div class="slidecontainer">
+          <input type="range" name="level-{{shade.id}}" min="0" max="100"
+                 value="{% if shade.macro-level %}{{shade.macro-level}}{% else %}{{shade.level}}{% endif %}"
+                 class="slider" {% if not user.admin %}disabled{% endif %} >
+        </div>
+      </td>
+      <td class="vertical-middle ml-0 pl-0">Open</td>
+      <td class="vertical-middle field">
+        <label class="switch">
+          <input name="enabled-{{shade.id}}" type="checkbox"{% if shade.macro-level %} checked="checked"{% endif %}
+                 {% if not user.admin %} disabled{% endif %}>
+          <span class="toggle round"></span>
+        </label>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+  <div class="field">
+    <div class="control">
+      {% if user.admin %}
+      <input class="button is-primary mr-6" type="submit" value="{% if macro.id %}Save{% else %}Create{% endif %}" />
+      {% endif %}
+      <a class="button is-link" href="/profile">Cancel</a>
+    </div>
+  </div>
+</form>
+
+{% endblock %}

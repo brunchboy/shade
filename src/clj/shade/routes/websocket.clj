@@ -223,6 +223,26 @@
   (let [range (- open_max close_min)]
     (Math/round (* 100.0 (/ (- level close_min) range)))))
 
+(defn shades-for-macro-editor
+  "Returns the list of shades including their current level and battery
+  level. If any are mentioned in the supplied list of macro entries,
+  adds the macro level to that entry."
+  [entries]
+  (let [state       (:shades @shade-state)
+        entry-index (reduce (fn [acc entry]
+                              (assoc acc (:shade entry) entry))
+                            {}
+                            entries)]
+    (map (fn [shade]
+           (let [leveled       (assoc shade :level (get-in state [(:id shade) :level] (:close_min shade)))
+                 entry         (get entry-index (:id shade))
+                 battery-level (get-in state [(:id shade) :battery-level] -1)]
+             (merge shade
+                    {:level         (expand-shade-level leveled)
+                     :macro-level   (get entry :level)
+                     :battery-level battery-level})))
+         (db/list-shades))))
+
 (defn- include-level
   "Takes a shade bounds entry being reported for a room, and inserts the
   current level of that shade into it, expanding it back to the

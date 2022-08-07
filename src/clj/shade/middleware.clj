@@ -63,6 +63,12 @@
   (when (authenticated? request)
     (boolean (:is_active (db/get-user (:identity request))))))
 
+(defn admin?
+  "Checks that the user is authenticated, active, and an administrator."
+  [request]
+  (and (active? request)
+       (get-in request [:identity :admin])))
+
 (def rules
   "The access rules which control user access to routes."
   [{:uri     "/login" ; Login page can always be accessed.
@@ -75,6 +81,8 @@
     :handler authenticated?}
    {:uri "/profile"  ; The profile page also only requries a valid login.
     :handler authenticated?}
+   {:uri "/delete-macro/*"  ; Deleting a macro requires administrator privileges.
+    :handler admin?}
    {:uri     "/ws" ; Need special header to open the web socket.
     :handler (fn [request] (= (get-in request [:headers "x-shade-token"]) (env :websocket-token)))}
    {:uri     "*" ; Everything else needs an active and valid login to access.

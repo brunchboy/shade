@@ -81,11 +81,11 @@
 (defn profile-page [request]
   (let [user-id (get-in request [:session :identity :id])
         rooms   (db/list-rooms-for-user {:user user-id})
-        macros (db/list-macros-for-user {:user user-id})]
+        macros  (db/list-macros-for-user {:user user-id})]
     (layout/render request "profile.html"
                    (merge (select-keys request [:active?])
-                          {:user  (db/get-user {:id user-id})
-                           :rooms rooms
+                          {:user   (db/get-user {:id user-id})
+                           :rooms  rooms
                            :macros macros}))))
 
 (defn- promote-room-state
@@ -216,6 +216,122 @@
         room-id (UUID/fromString (:room path-params))]
     (json-response (ws/shades-visible room-id user-id))))
 
+(defn macro-page [{:keys [path-params session] :as request}]
+  (let [user-id  (get-in session [ :identity :id])
+        macro-id (when-let [id (:id path-params)] (UUID/fromString id))
+        rooms    (db/list-rooms-for-user {:user user-id})
+        macro    (when macro-id (db/get-macro {:id macro-id}))
+        entries  (when macro (db/get-all-macro-entries {:macro macro-id}))
+        shades   (ws/shades-for-macro-editor entries)]
+    (if (and macro-id (not macro))
+      (layout/error-page {:status 404 :title "404 - Macro not found"})
+      (layout/render request "macro.html"
+                     (merge (select-keys request [:active?])
+                            {:user   (db/get-user {:id user-id})
+                             :rooms  rooms
+                             :macro  macro
+                             :shades shades})))))
+
+(defn- merge-macro-form
+  "Updates a list of current shade positions to reflect what values were
+  set on a failed form submission, and which shades were to be included."
+  [shades entries]
+  (map (fn [shade]
+         (let [entry (get entries (:id shade))]
+           (cond-> shade
+             (:level entry)
+             (assoc :level (:level entry))
+
+             (:enabled entry)
+             (assoc :macro-level (:level entry)))))
+       shades))
+
+(defn- parse-macro-form
+  "Converts the form parameters from the macro editor into a map from
+  shade ID to level and enabled information."
+  [form-params]
+  (reduce (fn [acc [k v]]
+            (cond
+              (re-matches #"enabled-.*" k)
+              (assoc-in acc [(UUID/fromString (subs k 8)) :enabled] (boolean (= v "on")))
+
+              (re-matches #"level-.*" k)
+              (assoc-in acc [(UUID/fromString (subs k 6)) :level] (Long/parseLong v))
+
+              :else acc))
+          {}
+          form-params))
+
+(defn create-macro-entries
+  "Creates the necessary macro entries to save a macro that has been
+  edited or created."
+  [macro-id entries]
+  (doseq [[shade-id entry] entries]
+    (when (:enabled entry)
+      (db/create-macro-entry! (merge (select-keys entry [:level])
+                                     {:macro macro-id
+                                      :shade shade-id})))))
+
+(defn macro-save [{:keys [path-params form-params session] :as request}]
+  (let [user-id  (get-in session [ :identity :id])
+        user     (db/get-user {:id user-id})
+        macro-id (when-let [id (:id path-params)] (UUID/fromString id))
+        rooms    (db/list-rooms-for-user {:user user-id})
+        name     (form-params "name")
+        entries  (parse-macro-form form-params)
+        errors   (cond-> []
+                   (str/blank? name)
+                   (conj "Name cannot be empty.")
+
+                   (when-let [existing (db/get-macro-by-name {:name name})]
+                     (not= (:id existing) macro-id))
+                   (conj "Another macro with this name already exists.")
+
+                   (not (:admin user))
+                   (conj "Macros can only be viewed."))]
+    (if (seq errors)
+      (layout/render request "macro.html"
+                     (merge (select-keys request [:active])
+                            {:user   user
+                             :rooms  rooms
+                             :macro  {:id   macro-id
+                                      :name name}
+                             :shades (merge-macro-form (ws/shades-for-macro-editor nil) entries)
+                             :error  (str/join " " errors)}))
+      (do
+        (if macro-id
+          (do  ; Updating an existing macro
+            (db/update-macro! {:id   macro-id
+                               :name name})
+            (db/delete-macro-entries! {:macro macro-id})
+            (create-macro-entries macro-id entries))
+          (let [macro-id (:id (db/create-macro! {:name name}))]  ; Creating a new macro
+            (create-macro-entries macro-id entries)
+            (db/create-user-macro! {:user  user-id
+                                    :macro macro-id})))
+        (redirect "/profile")))))
+
+(defn delete-macro-page [{:keys [path-params session] :as request}]
+  (let [user-id  (get-in session [ :identity :id])
+        rooms    (db/list-rooms-for-user {:user user-id})
+        macro-id (when-let [id (:id path-params)] (UUID/fromString id))
+        macro    (when macro-id (db/get-macro {:id macro-id}))]
+    (if-not macro
+      (layout/error-page {:status 404 :title "404 - Macro not found"})
+      (layout/render request "delete-macro.html"
+                     (merge (select-keys request [:active?])
+                            {:user   (db/get-user {:id user-id})
+                             :rooms  rooms
+                             :macro  macro})))))
+
+(defn macro-delete [{:keys [path-params]}]
+  (let [macro-id (when-let [id (:id path-params)] (UUID/fromString id))]
+    (if-not macro-id
+      (layout/error-page {:status 404 :title "404 - Macro not found"})
+      (do
+        (db/delete-macro! {:id macro-id} )
+        (redirect "/profile")))))
+
 
 (defn login-authenticate
   "Check request username and password against authdata
@@ -327,10 +443,16 @@
                  middleware/wrap-formats
                  wrap-active]}
    ["/" {:get home-page}]
+   ["/delete-macro/:id" {:get  delete-macro-page
+                         :post macro-delete}]
    ["/about" {:get about-page}]
    ["/login" {:get  login-page
               :post login-authenticate}]
    ["/logout" {:get logout}]
+   ["/macro/" {:get  macro-page
+               :post macro-save}]
+   ["/macro/:id" {:get  macro-page
+                  :post macro-save}]
    ["/macro-states" {:get macro-states}]
    ["/profile" {:get  profile-page
                 :post profile-update}]

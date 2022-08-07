@@ -56,29 +56,46 @@
   </div>
 </form>
 
-{% if macros|not-empty %}
-<h2 class="title is-5 mt-6">Macro Visibility</h2>
-<h3 class="subtitle is-6">Choose which macros appear on home and room pages.</h3>
+<h2 class="title is-5 mt-6">Macros</h2>
+<h3 class="subtitle is-6">{% if user.admin %}Edit{% else %}View{% endif %}
+  macros, or choose which appear on your home and room pages.</h3>
 
+{% if macros|not-empty %}
 <table class="table">
   <thead>
     <th>Macro</th>
     <th>Enabled?</th>
+    {% if user.admin %}
+    <th>Delete</th>
+    {% endif %}
   </thead>
   <tbody>
     {% for macro in macros %}
     <tr>
-      <td>{{macro.name}}</td>
-      <td>
+      <td class="vertical-middle"><a href="/macro/{{macro.id}}">{{macro.name}}</a></td>
+      <td class="vertical-middle">
         <label class="switch">
           <input type="checkbox"{% if macro.enabled %} checked="checked"{% endif %}} onclick=setMacroVisibility(this,'{{user.id}}','{{macro.id}}')>
           <span class="toggle round"></span>
         </label>
       </td>
+      {% if user.admin %}
+      <td>
+        <a class="button is-danger is-small" href="/delete-macro/{{macro.id}}">
+          <span class="material-icons">
+            delete_forever
+          </span>
+        </a>
+      </td>
+      {% endif %}
     </tr>
     {% endfor %}
   </tbody>
 </table>
+{% endif %}
+
+{% if user.admin %}
+<a class="button is-link" href="/macro/">Create Macro</a>
 {% endif %}
 
 {% endblock %}
