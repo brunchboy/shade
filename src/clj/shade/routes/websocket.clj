@@ -194,8 +194,11 @@
             shades (db/get-shades {:ids ids})]
         (ws/send (str {:action :set-levels
                        :blinds (mapv (fn [shade]
-                                       (let [leveled (assoc shade :level
-                                                            (Long/valueOf (get preview (-> shade :id str keyword))))]
+                                       ;; This painful bit is because JS sometimes sends us the values as
+                                       ;; strings, and sometimes as Integers, which `Long/valueOf` does not
+                                       ;; support.
+                                       (let [level   (Long/valueOf (str (get preview (-> shade :id str keyword))))
+                                             leveled (assoc shade :level level)]
                                          {:id    (:controller_id shade)
                                           :level (narrow-macro-level leveled)}))
                                      shades)})
