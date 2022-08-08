@@ -83,7 +83,8 @@
           x = (event.clientX - rect.left) * scaleX,
           y = (event.clientY - rect.top) * scaleY;
     const req = new XMLHttpRequest();
-    req.open("GET", "/shade-tapped/{{room.id}}?x=" + x + "&y=" + y);
+    const kind = document.getElementById("set_privacy").checked? "&kind=screen" : "";
+    req.open("GET", "/shade-tapped/{{room.id}}?x=" + x + "&y=" + y + kind);
     req.send();
   }
 </script>
@@ -100,6 +101,13 @@
           onmousedown="canvasClicked(this, event)">
   </canvas>
 </figure>
+<p class="has-text-centered">
+  Click in photo to set a blind level. Setting:
+  <input type="radio" name="blind_kind" id="set_blackout" checked>
+  <label for="blackout">Blackout</label>
+  <input type="radio" name="blind_kind" id="set_privacy">
+  <label for="privacy">Privacy</label>
+</p>
 
 {% if macros|not-empty %}
 <h2 class="title is-5 mt-5">Macros</h2>
