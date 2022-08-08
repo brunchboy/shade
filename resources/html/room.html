@@ -76,6 +76,16 @@
 
   setInterval(updateMacroStates, 900);
 
+  function canvasClicked(canvas, event) {
+    const rect = canvas.getBoundingClientRect(),
+          scaleX = canvas.width / rect.width,
+          scaleY = canvas.height / rect.height,
+          x = (event.clientX - rect.left) * scaleX,
+          y = (event.clientY - rect.top) * scaleY;
+    const req = new XMLHttpRequest();
+    req.open("GET", "/shade-tapped/{{room.id}}?x=" + x + "&y=" + y);
+    req.send();
+  }
 </script>
 
 <div style="display:none;">
@@ -86,7 +96,8 @@
 </div>
 
 <figure class="image is-fullwidth is-4by3">
-  <canvas id="canvas" class="has-ratio" width="{{room.image_width}}" height="{{room.image_height}}">
+  <canvas id="canvas" class="has-ratio" width="{{room.image_width}}" height="{{room.image_height}}"
+          onmousedown="canvasClicked(this, event)">
   </canvas>
 </figure>
 
