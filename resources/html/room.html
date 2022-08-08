@@ -80,8 +80,8 @@
     const rect = canvas.getBoundingClientRect(),
           scaleX = canvas.width / rect.width,
           scaleY = canvas.height / rect.height,
-          x = (event.clientX - rect.left) * scaleX,
-          y = (event.clientY - rect.top) * scaleY;
+          x = Math.round((event.clientX - rect.left) * scaleX),
+          y = Math.round((event.clientY - rect.top) * scaleY);
     const req = new XMLHttpRequest();
     const kind = document.getElementById("set_privacy").checked? "&kind=screen" : "";
     req.open("GET", "/shade-tapped/{{room.id}}?x=" + x + "&y=" + y + kind);
@@ -102,11 +102,12 @@
   </canvas>
 </figure>
 <p class="has-text-centered">
-  Click in photo to set a blind level. Setting:
+  Tap photo to set
   <input type="radio" name="blind_kind" id="set_blackout" checked>
   <label for="blackout">Blackout</label>
   <input type="radio" name="blind_kind" id="set_privacy">
   <label for="privacy">Privacy</label>
+  shade.
 </p>
 
 {% if macros|not-empty %}
