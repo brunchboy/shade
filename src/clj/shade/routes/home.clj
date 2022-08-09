@@ -285,7 +285,7 @@
                         (filter identity)
                         first)]
         (when hit
-          (ws/run-preview {(keyword (str (:shade_id hit))) (:level hit)}))
+          (ws/move-shades {(keyword (str (:shade_id hit))) (:level hit)}))
         (json-response hit)))))
 
 (defn macro-page [{:keys [path-params session] :as request}]
@@ -510,7 +510,7 @@
 
 (defn set-shade-levels
   [{:keys [params]}]
-  (ws/run-preview params)
+  (ws/move-shades params)
   (json-response {:action "Shade levels set."}))
 
 (defn wrap-active [handler]

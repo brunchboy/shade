@@ -14,8 +14,22 @@
     ctx.lineTo(entry.bottom_right_x, entry.bottom_right_y);
     ctx.lineTo(entry.bottom_left_x, entry.bottom_left_y);
     ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(document.getElementById(entry.image), 0, 0, canvas.width, canvas.height);
+    if ("image" in entry) {
+      ctx.clip();
+      ctx.drawImage(document.getElementById(entry.image), 0, 0, canvas.width, canvas.height);
+    } else {
+      if (entry.moving == "blackout") {
+        ctx.fillStyle = "rgba(0, 0, 255, 30%)";
+        ctx.strokeStyle = "rgba(0, 0, 255, 80%)";
+      } else {
+        ctx.fillStyle = "rgba(240, 255, 10, 25%)";
+        ctx.strokeStyle = "rgba(240, 255, 10, 80%)";
+      }
+      ctx.fill();
+      ctx.lineWidth = 8;
+      ctx.setLineDash([8, 8]);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 

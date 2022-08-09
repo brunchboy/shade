@@ -185,8 +185,9 @@
                  (assoc shade :moving? (not= (narrow-macro-level entry) (:level shade))))))
       (tickle-state-updater))))
 
-(defn run-preview
-  "Sets the shades mentioned in the preview request to the desired levels."
+(defn move-shades
+  "Sets the shades mentioned in a preview request to the desired
+  levels. Also handles taps to move shades on the room images."
   [preview]
   (when-let [ch @channel-open]
     (when-not (empty? preview)
@@ -202,7 +203,15 @@
                                          {:id    (:controller_id shade)
                                           :level (narrow-macro-level leveled)}))
                                      shades)})
-                 ch)))))  ; No need to worry about tickling the state updater, user is focused on defining a macro.
+                 ch)
+        (doseq [shade shades]  ; Then do similar shenanigans to let our state updater know the shades are moving.
+          (let [level   (Long/valueOf (str (get preview (-> shade :id str keyword))))
+                leveled (assoc shade :level level)]
+            (swap! shade-state update-in [:shades (:id shade)]
+                   (fn [state]
+                     (assoc state :moving? true
+                            :target-level (narrow-macro-level leveled))))))
+        (tickle-state-updater)))))
 
 (defn- in-effect-by-room
   "Given the current shade state and a list of macro entries, builds a
@@ -265,12 +274,17 @@
 (defn- include-level
   "Takes a shade bounds entry being reported for a room, and inserts the
   current level of that shade into it, expanding it back to the
-  logical range where 0 is fully closed and 100 is fully open."
+  logical range where 0 is fully closed and 100 is fully open. It also
+  includes a flag that indicates whether the shade is moving, and the
+  target level it is moving to."
   [shade-info]
-  (let [state   (:shades @shade-state)
-        leveled (assoc shade-info :level (get-in state [(:shade_id shade-info) :level] (:close_min shade-info)))]
+  (let [state    (get-in @shade-state [:shades (:shade_id shade-info)])
+        leveled  (assoc shade-info :level (:level state (:close_min shade-info)))
+        targeted (assoc shade-info :level (:target-level state (:close_min shade-info)))]
     (-> shade-info
-        (assoc :level (expand-shade-level leveled))
+        (assoc :level (expand-shade-level leveled)
+               :target-level (expand-shade-level targeted)
+               :moving? (:moving? state))
         (dissoc :close_min :open_max))))
 
 (defn- group-shades
@@ -374,10 +388,26 @@
      :bottom_right_x (:image_width room)
      :top_right_x    (:image_width room)}))
 
+(defn movement-indicators-to-draw
+  "Given a shade boundary map produced by `shades-visible`, returns a
+  list of movement-indicator regions that need to be drawn to show the
+  cooresponding current target positions for that pair of shades, if
+  either or both is moving."
+  [{:keys [shades] :as boundaries}]
+  (->> (map (fn [[kind shade]]
+              (when (:moving? shade)
+                (merge {:moving kind}
+                       (clip boundaries 100 (:target-level shade)))))
+            shades)
+       (filter identity)))
+
 (defn shades-visible
   "Sends a list of image region updates required to make a room photo
   accurately reflect the current state of the shades, as long as the
-  specified user has access to the specified room."
+  specified user has access to the specified room. After the last
+  image drawing instruction is emitted, we add instructions to draw
+  translucent indicators of the positions to which any moving shades
+  are moving."
   [room-id user-id]
   (let [valid-rooms (->> (db/list-rooms-for-user {:user user-id}))
         room        (first (filter #(= (:id %) room-id) valid-rooms) )]
@@ -387,7 +417,8 @@
                                 vals)
             base           (base-image grouped-shades room)]
         (concat [base]
-                (mapcat (partial regions-to-draw (:image base)) grouped-shades))))))
+                (mapcat (partial regions-to-draw (:image base)) grouped-shades)
+                (mapcat movement-indicators-to-draw grouped-shades))))))
 
 
 (def moving-interval
