@@ -120,7 +120,7 @@
                    (conj "Macros can only be viewed."))]
     (if (seq errors)
       (layout/render request "macro.html"
-                     (merge (select-keys request [:active])
+                     (merge (select-keys request [:active?])
                             {:user   user
                              :rooms  rooms
                              :macro  {:id   macro-id
