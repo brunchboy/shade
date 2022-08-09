@@ -59,7 +59,8 @@
 
   function runRoomMacro(macroId, roomId) {
     const req = new XMLHttpRequest();
-    req.open("GET", "/run/" + macroId + "?room=" + roomId);
+    req.open("post", "/run/" + macroId + "?room=" + roomId);
+    req.setRequestHeader("X-CSRF-Token", "{{csrf-token}}");
     req.send();
   }
 
@@ -98,7 +99,8 @@
           y = Math.round((event.clientY - rect.top) * scaleY);
     const req = new XMLHttpRequest();
     const kind = document.getElementById("set_privacy").checked? "&kind=screen" : "";
-    req.open("GET", "/shade-tapped/{{room.id}}?x=" + x + "&y=" + y + kind);
+    req.open("post", "/shade-tapped/{{room.id}}?x=" + x + "&y=" + y + kind);
+    req.setRequestHeader("X-CSRF-Token", "{{csrf-token}}");
     req.send();
   }
 </script>

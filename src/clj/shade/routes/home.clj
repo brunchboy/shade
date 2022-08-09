@@ -540,9 +540,9 @@
    ["/profile" {:get  profile-page
                 :post profile-update}]
    ["/room/:id" {:get room-page}]
-   ["/run/:id" {:get run-macro}]
-   ["/set-macro-visibility/:macro-id/:user-id/:visible" {:get set-macro-visibility}]
+   ["/run/:id" {:post run-macro}]
+   ["/set-macro-visibility/:macro-id/:user-id/:visible" {:post set-macro-visibility}]
    ["/set-shade-levels" {:post set-shade-levels}]
-   ["/shade-tapped/:room" {:get shade-tapped}]
+   ["/shade-tapped/:room" {:post shade-tapped}]
    ["/shades-visible/:room" {:get shades-visible}]
    ["/status" {:get status-page}]])

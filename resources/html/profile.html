@@ -4,7 +4,8 @@
 <script type="text/javascript">
   function setMacroVisibility(checkbox,userId,macroId) {
     const req = new XMLHttpRequest();
-    req.open("GET", "set-macro-visibility/" + macroId + "/" + userId + "/" + checkbox.checked);
+    req.open("post", "set-macro-visibility/" + macroId + "/" + userId + "/" + checkbox.checked);
+    req.setRequestHeader("X-CSRF-Token", "{{csrf-token}}");
     req.send();
   }
 </script>
