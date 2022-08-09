@@ -1,17 +1,17 @@
 (ns shade.routes.websocket
   "Handles communication with the web socket that relayes queries and
   commands to the blind controller running on our home network."
-  (:require [shade.config :refer [env]]
+  (:require [clojure.core.async :as async]
+            [clojure.edn :as edn]
+            [clojure.tools.logging :as log]
+            [java-time :as jt]
+            [mount.core :refer [defstate]]
+            [ring.adapter.undertow.websocket :as ws]
+            [shade.config :refer [env]]
             [shade.db.core :as db]
             [shade.sun :as sun]
-            [shade.weather :as weather]
-            [java-time :as jt]
-            [ring.adapter.undertow.websocket :as ws]
-            [clojure.core.async :as async]
-            [clojure.edn :as edn]
-            [clojure.set :as set]
-            [clojure.tools.logging :as log]
-            [mount.core :refer [defstate]]))
+            [shade.util :as util]
+            [shade.weather :as weather]))
 
 (def channel-open
   "Keeps track of the channel associated with the open web socket."
@@ -154,14 +154,6 @@
 (defn websocket-routes []
   [["/ws" handler]])
 
-(defn narrow-macro-level
-  "Translates a macro shade level, which ranges from 0 to 100, to the
-  potentially more limited range required by the calibration
-  correction associated with the shade, if any."
-  [{:keys [level close_min open_max]}]
-  (let [range (- open_max close_min)]
-    (+ close_min (Math/round (double (* range (/ level 100)))))))
-
 (defn run-macro
   "Loads the entries available to the specified user of the specified
   macro, and sends instructions to configure the blinds accordingly.
@@ -174,7 +166,7 @@
       (ws/send (str {:action :set-levels
                      :blinds (mapv (fn [entry]
                                      {:id    (:controller_id entry)
-                                      :level (narrow-macro-level entry)})
+                                      :level (util/narrow-macro-level entry)})
                                    (cond->> entries
                                      room-id
                                      (filter #(= (:room %) room-id))))})
@@ -182,7 +174,7 @@
       (doseq [entry entries]
         (swap! shade-state update-in [:shades (:shade entry)]
                (fn [shade]
-                 (assoc shade :moving? (not= (narrow-macro-level entry) (:level shade))))))
+                 (assoc shade :moving? (not= (util/narrow-macro-level entry) (:level shade))))))
       (tickle-state-updater))))
 
 (defn move-shades
@@ -201,7 +193,7 @@
                                        (let [level   (Long/valueOf (str (get preview (-> shade :id str keyword))))
                                              leveled (assoc shade :level level)]
                                          {:id    (:controller_id shade)
-                                          :level (narrow-macro-level leveled)}))
+                                          :level (util/narrow-macro-level leveled)}))
                                      shades)})
                  ch)
         (doseq [shade shades]  ; Then do similar shenanigans to let our state updater know the shades are moving.
@@ -210,22 +202,8 @@
             (swap! shade-state update-in [:shades (:id shade)]
                    (fn [state]
                      (assoc state :moving? true
-                            :target-level (narrow-macro-level leveled))))))
+                            :target-level (util/narrow-macro-level leveled))))))
         (tickle-state-updater)))))
-
-(defn- in-effect-by-room
-  "Given the current shade state and a list of macro entries, builds a
-  map whose keys are the room IDs present in the macro entries, and
-  whose values true when all blinds in that room for which macro
-  entries exist are currently at the level desired."
-  [state entries]
-  (let [rooms (set (map :room entries))]
-    (into {}
-          (map (fn [room]
-                 [room (every? #(= (narrow-macro-level %)
-                                   (get-in state [(:shade %) :level]))
-                               (filter #(= (:room %) room) entries))])
-               rooms))))
 
 (defn macros-in-effect
   "Loads the entries available to the specified user for each specified
@@ -238,18 +216,10 @@
     (mapv (fn [macro]
             (let [entries (db/get-macro-entries {:macro (:id macro)
                                                  :user  user-id})]
-              (assoc macro :in-effect (every? #(= (narrow-macro-level %)
+              (assoc macro :in-effect (every? #(= (util/narrow-macro-level %)
                                                   (get-in state [(:shade %) :level])) entries)
-                     :rooms (in-effect-by-room state entries))))
+                     :rooms (util/in-effect-by-room state entries))))
           macros)))
-
-(defn expand-shade-level
-  "Translates an actual shade level, which is in a potentially limited
-  range required by the calibration correction associated with the
-  shade, to the full 0-100 range."
-  [{:keys [level close_min open_max]}]
-  (let [range (- open_max close_min)]
-    (Math/round (* 100.0 (/ (- level close_min) range)))))
 
 (defn shades-for-macro-editor
   "Returns the list of shades including their current level and battery
@@ -266,7 +236,7 @@
                  entry         (get entry-index (:id shade))
                  battery-level (get-in state [(:id shade) :battery-level] -1)]
              (merge shade
-                    {:level         (expand-shade-level leveled)
+                    {:level         (util/expand-shade-level leveled)
                      :macro-level   (get entry :level)
                      :battery-level battery-level})))
          (db/list-shades))))
@@ -282,14 +252,16 @@
         leveled  (assoc shade-info :level (:level state (:close_min shade-info)))
         targeted (assoc shade-info :level (:target-level state (:close_min shade-info)))]
     (-> shade-info
-        (assoc :level (expand-shade-level leveled)
-               :target-level (expand-shade-level targeted)
+        (assoc :level (util/expand-shade-level leveled)
+               :target-level (util/expand-shade-level targeted)
                :moving? (:moving? state))
         (dissoc :close_min :open_max))))
 
-(defn- group-shades
+(defn- group-shades-and-add-levels
   "Transforms the shade photo boundaries rows so that shades which share
-  the same boundaries are grouped into a single entry."
+  the same boundaries are grouped into a single entry. In the process
+  adds information about the shades' current positions, motion, and
+  target positions."
   [bounds]
   (reduce (fn [acc v]
             (let [shade-info (select-keys v [:kind :close_min :open_max :controller_id :shade_id])
@@ -300,106 +272,6 @@
                                          (dissoc (include-level shade-info) :kind)))))
           {}
           bounds))
-
-(defn interpolate
-  "Given a starting and ending point, and a level from 0 to 100,
-  interpolates between the two points."
-  [start end percentage]
-  (let [range (- end start)]
-    (Math/round (+ start (/ (* range (- 100 percentage)) 100.0)))))
-
-(defn- clip
-  "Given a shade boundary map produced by `shades-visible`, and a top
-  and bottom level expressed as percentages, returns the boundaries
-  clipped to include the specified section only."
-  [{:keys [top_left_x top_left_y top_right_x top_right_y bottom_left_x bottom_left_y bottom_right_x bottom_right_y]}
-   top-level bottom-level]
-  {:top_left_x (interpolate top_left_x bottom_left_x top-level)
-   :bottom_left_x (interpolate top_left_x bottom_left_x bottom-level)
-   :top_left_y (interpolate top_left_y bottom_left_y top-level)
-   :bottom_left_y (interpolate top_left_y bottom_left_y bottom-level)
-   :top_right_x (interpolate top_right_x bottom_right_x top-level)
-   :bottom_right_x (interpolate top_right_x bottom_right_x bottom-level)
-   :top_right_y (interpolate top_right_y bottom_right_y top-level)
-   :bottom_right_y (interpolate top_right_y bottom_right_y bottom-level)})
-
-(defn- regions-to-draw
-  "Given a shade boundary map produced by `shades-visible`, returns a
-  list of image types and clipping regions that need to be drawn to
-  show the cooresponding current shade state for that pair of shades.
-  `base-name` is the name of the base image being drawn, which lets us
-  determine when regions can be omitted."
-  [base-name {:keys [shades] :as boundaries}]
-  (let [levels (set (map :level (vals shades)))]
-    (if (= 1 (count levels))
-      ;; Both blinds in this pair are at the same level, we have at most two regions to draw.
-      (let [level (first levels)]
-        (concat
-         (when (and (< level 100)             ; We only have to draw the blinds if they aren't fully open,
-                    (not= base-name "both"))  ; and only if the base image doesn't already show them.
-           [(merge {:image "both"}
-                   (clip boundaries 100 level))])
-         (when (and (pos? level)              ; We only have to draw the window if the blinds aren't fully closed,
-                    (not= base-name "open"))  ; and only if the base image doesn't already show the window.
-           [(merge {:image "open"}
-                   (clip boundaries level 0))])))
-      ;; Blinds are at different levels, we have up to three regions to draw.
-      (let [[bottom-shade top-shade] (sort-by (fn [entry] (get-in entry [1 :level])) shades)
-            top-level                (get-in top-shade [1 :level])
-            bottom-level             (get-in bottom-shade [1 :level])]
-        (concat
-         (when (and (< top-level 100)         ; The top shade is visible, so there is a region of both shades,
-                    (not= base-name "both"))  ; and the base image doesn't already show them.
-           [(merge {:image "both"}
-                   (clip boundaries 100 top-level))])
-         (let [lower-image (if (= (first bottom-shade) "blackout") "blackout" "privacy")]
-           (when (not= base-name lower-image)  ; The lower blind section is different than the base image.
-             [(merge {:image lower-image}
-                     (clip boundaries top-level bottom-level))]))
-         (when (and (pos? bottom-level)       ; We only have to draw the window if lower blind isn't fully closed,
-                    (not= base-name "open"))  ; and only if the base image doesn't already show the window.
-           [(merge {:image "open"}
-                   (clip boundaries bottom-level 0))]))))))
-
-(defn base-image
-  "Calculates the best starting image on which to draw the positions of
-  the blinds, and emits an instruction to draw it in its entirety."
-  [grouped-shades room]
-  (let [blackout-levels (set (map #(get-in % [:shades "blackout" :level]) grouped-shades))
-        screen-levels (set (map #(get-in % [:shades "screen" :level]) grouped-shades))]
-    {:image          (cond
-                       (= #{0} (set/union blackout-levels screen-levels))
-                       "both"
-
-                       (= #{0} blackout-levels)
-                       "blackout"
-
-                       (= #{0} screen-levels)
-                       "privacy"
-
-                       :else
-                       "open")
-     :top_left_y     0
-     :bottom_left_y  (:image_height room)
-     :top_right_y    0
-     :bottom_right_y (:image_height room)
-     :bottom_left_x  0
-     :top_left_x     0
-     :bottom_right_x (:image_width room)
-     :top_right_x    (:image_width room)}))
-
-(defn movement-indicators-to-draw
-  "Given a shade boundary map produced by `shades-visible`, returns a
-  list of movement-indicator regions that need to be drawn to show the
-  cooresponding current target positions for that pair of shades, if
-  either or both is moving."
-  [{:keys [shades] :as boundaries}]
-  (->> (map (fn [[kind shade]]
-              (when (:moving? shade)
-                (merge {:moving kind}
-                       (clip boundaries 100 (:target-level shade)))))
-            shades)
-       (filter identity)))
 
 (defn shades-visible
   "Sends a list of image region updates required to make a room photo
@@ -413,12 +285,12 @@
         room        (first (filter #(= (:id %) room-id) valid-rooms) )]
     (when room
       (let [grouped-shades (->> (db/get-room-photo-boundaries {:room room-id})
-                                group-shades
+                                group-shades-and-add-levels
                                 vals)
-            base           (base-image grouped-shades room)]
+            base           (util/base-image grouped-shades room)]
         (concat [base]
-                (mapcat (partial regions-to-draw (:image base)) grouped-shades)
-                (mapcat movement-indicators-to-draw grouped-shades))))))
+                (mapcat (partial util/regions-to-draw (:image base)) grouped-shades)
+                (mapcat util/movement-indicators-to-draw grouped-shades))))))
 
 
 (def moving-interval
@@ -454,22 +326,13 @@
       (catch Throwable t
         (log/error t "Problem requesting blind information.")))))
 
-(defn same-day?
-  "Checks whether the specified event last ran today (in the time zone of the blinds)."
-  [event]
-  (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
-        event-date     (jt/local-date (jt/with-zone-same-instant (.atZone (:happened event) (jt/zone-id "UTC"))
-                                        local-timezone))
-        today          (jt/local-date (jt/instant) local-timezone)]
-    (= event-date today)))
-
 (defn sunrise-protect
   "If we have just reached astronomical dawn, close the blackout
   curtains in all rooms marked for sunrise protection."
   [sun-position]
   (let [last-run (db/find-event {:name "sunrise-protect"})
         ch       @channel-open]
-    (when-not (and last-run (same-day? last-run))      ; Has not already run today.
+    (when-not (and last-run (util/same-day? last-run))      ; Has not already run today.
       (when (and (> (:elevation sun-position) sun/astronomical-dawn-elevation)    ; It's past astronomical dawn.
                  ch)  ; And we have a connection to the blind interface.
         (log/info "Running sunrise-protect.")
@@ -534,7 +397,7 @@
     (doseq [group (db/list-sunblock-groups)]
       (let [last-opened (db/find-event {:name "sunblock-group-entered" :related-id (:id group)})
             shining?    (sun/entering-windows? sun-position group)]
-        (if-not (and last-opened (same-day? last-opened))
+        (if-not (and last-opened (util/same-day? last-opened))
           ;; This group has not yet run today, time to close?
           (when (and shining?  ; The sun is shining through this group,
                      warm      ; the weather merits blocking the sun to keep the home cool,
@@ -553,7 +416,7 @@
           ;; This group has run today, is it time to open back up?
           (let [last-closed (db/find-event {:name "sunblock-group-exited" :related-id (:id group)})]
             (when (and (not shining?)  ; Sun is no longer shining through this group.
-                       (not (and last-closed (same-day? last-closed)))  ; We have not yet closed it.
+                       (not (and last-closed (util/same-day? last-closed)))  ; We have not yet closed it.
                        ch)             ; And we have a connection to the blind interface.
               (log/info "Reopening blinds for sunblock group" (:name group))
               (ws/send (str {:action :set-levels
