@@ -3,6 +3,7 @@
   macros."
   (:require
    [ring.util.json-response :refer [json-response]]
+   [shade.config :refer [env]]
    [shade.db.core :as db]
    [shade.layout :as layout]
    [shade.routes.websocket :as ws]
@@ -30,6 +31,7 @@
       (layout/render request "room.html"
                      (merge (select-keys request [:active?])
                             {:onload "draw();"
+                             :cdn    (env :cdn-url)
                              :user   (db/get-user {:id user-id})
                              :rooms  rooms
                              :room   room
