@@ -15,7 +15,8 @@
       <nav class="navbar is-info">
           <div class="container">
               <div class="navbar-brand">
-                  <a class="navbar-item" href="/" style="font-weight:bold;">shade</a>
+                <a class="navbar-item{% ifequal page "home.html" %} is-active{%endifequal%}"
+                   href="/" style="font-weight:bold;">shade</a>
                   <span class="navbar-burger burger" data-target="nav-menu">
                       <span></span>
                       <span></span>
@@ -24,7 +25,6 @@
               </div>
               <div id="nav-menu" class="navbar-menu">
                   <div class="navbar-start">
-                      <a href="/" class="navbar-item{% ifequal page "home.html" %} is-active{%endifequal%}">Home</a>
                       {% if active? %}
                       <div class="navbar-item has-dropdown is-hoverable">
                         <a class="navbar-link">Rooms</a>
