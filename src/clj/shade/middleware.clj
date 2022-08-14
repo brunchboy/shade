@@ -71,19 +71,25 @@
 
 (def rules
   "The access rules which control user access to routes."
-  [{:uri     "/login" ; Login page can always be accessed.
+  [{:uri     "/assets/*"  ; Public assets can always be accessed.
+    :handler (constantly true)}
+   {:uri     "/css/*"  ; Public CSS can always be accessed.
+    :handler (constantly true)}
+   {:uri     "/img/*"  ; Public images can always be accessed.
+    :handler (constantly true)}
+   {:uri     "/login" ; Login page can always be accessed.
     :handler (constantly true)}
    {:uri     "/logout" ; Logout page can always be accessed.
     :handler (constantly true)}
    {:uri     "/about" ; About page can always be accessed.
     :handler (constantly true)}
-   {:uri "/"  ; The home page only requires a valid login.
+   {:uri     "/" ; The home page only requires a valid login.
     :handler authenticated?}
-   {:uri "/profile"  ; The profile page also only requries a valid login.
+   {:uri     "/profile" ; The profile page also only requries a valid login.
     :handler authenticated?}
-   {:uri "/delete-macro/*"  ; Deleting a macro requires administrator privileges.
+   {:uri     "/delete-macro/*" ; Deleting a macro requires administrator privileges.
     :handler admin?}
-   {:uri "/set-shade-levels"  ; Setting arbitrary shade levels also requires administrator privileges.
+   {:uri     "/set-shade-levels" ; Setting arbitrary shade levels also requires administrator privileges.
     :handler admin?}
    {:uri     "/ws" ; Need special header to open the web socket.
     :handler (fn [request] (= (get-in request [:headers "x-shade-token"]) (env :websocket-token)))}
