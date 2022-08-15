@@ -10,6 +10,7 @@
    [shade.routes.profile :as profile]
    [shade.routes.room :as room]
    [shade.routes.status :as status]
+   [shade.routes.sunblock :as sunblock]
    [shade.routes.user :as user]
    [shade.routes.websocket :as ws]
    [clojure.set :as set]
@@ -94,6 +95,9 @@
    ["/admin/delete-user/:id" {:get  user/delete-user-page
                                :post user/user-delete}]
    ["/admin/macros" {:get macro/list-macros-page}]
+   ["/admin/set-shade-sunblock-group" {:post sunblock/set-shade-sunblock-group}]
+   ["/admin/sunblock-groups" {:get sunblock/list-groups-page}]
+   ["/admin/sunblock-shades" {:get sunblock/assign-shades-page}]
    ["/admin/user/" {:get  user/user-page
                      :post user/user-save}]
    ["/admin/user/:id" {:get  user/user-page

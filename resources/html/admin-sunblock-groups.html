@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if error %}
+<div class="notification is-danger">{{error}}</div>
+{% endif %}
+
+<h1 class="title">Sunblock Groups</h1>
+<h2 class="subtitle">Manage Shade Sunblock Groups.</h2>
+
+{% if groups|not-empty %}
+<table class="table">
+  <thead>
+    <th>Sunblock Group</th>
+    <th>Members</th>
+  </thead>
+  <tbody>
+    {% for group in groups %}
+    <tr>
+      <td class="vertical-middle">{{group.name}}</td>
+      <td>
+        <a class="button is-link is-small" href="/admin/sunblock-shades">
+          {{group.count}} Shades
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+<p>
+  <a class="button is-link ml-6" href="/admin">Cancel</a>
+</p>
+
+{% endblock %}

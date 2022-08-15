@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script type="text/javascript">
+  function shadeChanged(shade, group) {
+    const req = new XMLHttpRequest();
+    req.open("post", "/admin/set-shade-sunblock-group");
+    req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    req.setRequestHeader("X-CSRF-Token", "{{csrf-token}}");
+    req.send(JSON.stringify({"shade": shade,
+                             "group": group}));
+  }
+</script>
+
+{% if error %}
+<div class="notification is-danger">{{error}}</div>
+{% endif %}
+
+<h1 class="title">Sunblock Group Shades</h1>
+<h2 class="subtitle">Assign Shades to Sunblock Groups.</h2>
+
+{% if shades|not-empty %}
+<table class="table">
+  <thead>
+    <th>Shade</th>
+    <th>Sunblock Group</th>
+  </thead>
+  <tbody>
+    {% for shade in shades %}
+    <tr>
+      <td class="vertical-middle">{{shade.name}}</td>
+      <td class="field">
+        <div class="select is-primary">
+          <select onchange="shadeChanged('{{shade.id}}', this.value)">
+            <option value="" {% if not shade.sunblock_group_id %} selected="selected"{% endif %}>
+              [none]
+            </option>
+            {% for group in groups %}
+            <option value="{{group.id}}"
+                    {% ifequal shade.sunblock_group_id group.id %} selected="selected"{% endifequal %}>
+              {{group.name}}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+<p>
+  <a class="button is-link ml-6" href="/admin/sunblock-groups">Done</a>
+</p>
+
+{% endblock %}

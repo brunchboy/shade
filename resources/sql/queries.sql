@@ -304,3 +304,9 @@ DELETE FROM sunblock_groups
 -- :doc retrieves the shades which belong to the specified sunblock group
 SELECT * from shades
  WHERE sunblock_group_id = :sunblock_group
+
+-- :name set-shade-sunblock-group! :! :n
+-- :doc updates the sunblock group of an existing shade record
+UPDATE shades
+   SET sunblock_group_id = :sunblock_group
+ WHERE id = :id
