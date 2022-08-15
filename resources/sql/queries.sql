@@ -300,26 +300,7 @@ SELECT * FROM sunblock_groups
 DELETE FROM sunblock_groups
  WHERE id = :id
 
-
--- :name get-sunblock-group-entries :? :*
--- :doc retrieves the entries which belong to the specified sunblock group
-SELECT sbe.*, s.controller_id, s.close_min, s.open_max
-  FROM sunblock_group_entries sbe
-  INNER JOIN shades s on sbe.shade = s.id
- WHERE sbe.sunblock_group = :sunblock_group
-
--- :name create-sunblock-group-entry! :! :n
--- :doc creates a new sunblock group entry record
-INSERT INTO sunblock_group_entries (sunblock_group, shade)
-VALUES (:sunblock_group, :shade)
-
--- :name delete-sunblock-group-entry! :! :n
--- :doc deletes a sunblock_group entry record given the sunblock group and shade
-DELETE FROM sunblock_group_entries
- WHERE sunblock_group = :sunblock_group
-   AND shade = :shade
-
--- :name delete-sunblock-group-entries! :! :n
--- :doc deletes al sunblock_group entries for a sunblock group, used when editing the group
-DELETE FROM sunblock_group_entries
- WHERE sunblock_group = :sunblock_group
+-- :name get-sunblock-group-shades :? :*
+-- :doc retrieves the shades which belong to the specified sunblock group
+SELECT * from shades
+ WHERE sunblock_group_id = :sunblock_group

@@ -408,7 +408,7 @@
                            :blinds (mapv (fn [shade]
                                            {:id    (:controller_id shade)
                                             :level (:close_min shade)})
-                                         (db/get-sunblock-group-entries {:sunblock_group (:id group)}))})
+                                         (db/get-sunblock-group-shades {:sunblock_group (:id group)}))})
                      ch)
             (db/save-event {:name "sunblock-group-entered" :related-id (:id group)})
             (tickle-state-updater))
@@ -423,7 +423,7 @@
                              :blinds (mapv (fn [shade]
                                              {:id    (:controller_id shade)
                                               :level (:open_max shade)})
-                                           (db/get-sunblock-group-entries {:sunblock_group (:id group)}))})
+                                           (db/get-sunblock-group-shades {:sunblock_group (:id group)}))})
                        ch)
               (db/save-event {:name "sunblock-group-exited" :related-id (:id group)}))))))))
 
