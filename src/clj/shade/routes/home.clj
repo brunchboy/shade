@@ -105,6 +105,7 @@
                         :post user/user-save}]
    ["/admin/users" {:get user/list-users-page}]
    ["/admin/user-rooms/:id" {:get user/user-rooms-page}]
+   ["/admin/user-macros/:id" {:get user/user-macros-page}]
    ["/admin" {:get admin/admin-page}]
    ["/login" {:get  login/login-page
               :post login/login-authenticate}]

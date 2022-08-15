@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script type="text/javascript">
+  function setMacroVisibility(checkbox,userId,macroId) {
+    const req = new XMLHttpRequest();
+    req.open("post", "/set-macro-visibility/" + macroId + "/" + userId + "/" + checkbox.checked);
+    req.setRequestHeader("X-CSRF-Token", "{{csrf-token}}");
+    req.send();
+  }
+</script>
+
+
+{% if error %}
+<div class="notification is-danger">{{error}}</div>
+{% endif %}
+
+<h1 class="title">Macros Enabled for User “{{other.email}}”</h1>
+
+<table class="table">
+  <thead>
+    <th>Macro</th>
+    <th>Enabled?</th>
+  </thead>
+  <tbody>
+    {% for macro in macros %}
+    <tr>
+      <td class="vertical-middle">
+        {{macro.name}}
+      </td>
+      <td class="vertical-middle">
+        <label class="switch">
+          <input type="checkbox"{% if macro.enabled %} checked="checked"{% endif %}} onclick=setMacroVisibility(this,'{{other.id}}','{{macro.id}}')>
+          <span class="toggle round"></span>
+        </label>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p><a class="button is-link ml-6" href="/admin/users">Done</a></p>
+
+{% endblock %}

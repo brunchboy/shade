@@ -140,7 +140,7 @@
         other-id  (when-let [id (:id path-params)] (UUID/fromString id))
         rooms     (db/list-rooms-for-user {:user user-id})
         all-rooms (db/list-rooms)
-        available (set (map :id (db/list-rooms-for-user {:user other-id})))
+        available (when other-id (set (map :id (db/list-rooms-for-user {:user other-id}))))
         other     (when other-id (db/get-user {:id other-id}))]
     (if (and other-id (not other))
       (layout/error-page {:status 404 :title "404 - User not found"})
@@ -163,3 +163,21 @@
       (db/delete-user-room! {:user user
                              :room room})))
   (json-response {:action "Room availability set"}))
+
+(defn user-macros-page [{:keys [path-params session] :as request}]
+  (let [user-id  (get-in session [ :identity :id])
+        other-id (when-let [id (:id path-params)] (UUID/fromString id))
+        rooms    (db/list-rooms-for-user {:user user-id})
+        macros   (when other-id (db/list-macros-for-user {:user other-id}))
+        enabled  (when other-id (set (map :id (db/list-macros-enabled-for-user {:user other-id}))))
+        other    (when other-id (db/get-user {:id other-id}))]
+    (if (and other-id (not other))
+      (layout/error-page {:status 404 :title "404 - User not found"})
+      (layout/render request "admin-user-macros.html"
+                     (merge (select-keys request [:active?])
+                            {:user   (db/get-user {:id user-id})
+                             :rooms  rooms
+                             :macros (mapv (fn [macro]
+                                             (assoc macro :enabled (enabled (:id macro))))
+                                           macros)
+                             :other  other})))))
