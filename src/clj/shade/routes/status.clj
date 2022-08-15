@@ -72,7 +72,8 @@
         rooms     (db/list-rooms-for-user {:user user-id})]
     (layout/render request "status.html"
                    (merge (select-keys request [:active?])
-                          {:rooms             rooms
+                          {:user              (db/get-user {:id user-id})
+                           :rooms             rooms
                            :events            (format-events)
                            :now               (localize-timestamp (jt/instant))
                            :sun               (sun/position (jt/zoned-date-time) latitude longitude)

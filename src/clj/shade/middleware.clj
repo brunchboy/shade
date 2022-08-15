@@ -87,7 +87,7 @@
     :handler authenticated?}
    {:uri     "/profile" ; The profile page also only requries a valid login.
     :handler authenticated?}
-   {:uri     "/delete-macro/*" ; Deleting a macro requires administrator privileges.
+   {:uri     "/admin/*" ; Administrative pages require administrator privileges.
     :handler admin?}
    {:uri     "/set-shade-levels" ; Setting arbitrary shade levels also requires administrator privileges.
     :handler admin?}

@@ -74,14 +74,13 @@
     (if (seq errors)
       (layout/render request "profile.html"
                      (merge (select-keys request [:active?])
-                            {:user         {:name  name
-                                            :email email}
+                            {:user         (merge user {:name  name
+                                                        :email email})
                              :new-password new-pw
                              :error        (str/join " " errors)}))
       (do
-        (db/update-user! (merge user
-                                {:name  name
-                                 :email email}
+        (db/update-user! (merge user {:name  name
+                                      :email email}
                                 (when-not (str/blank? new-pw)
                                   {:pass (hashers/derive new-pw)})))
         (when-not (str/blank? new-pw) (auth/clear-user-sessions user))

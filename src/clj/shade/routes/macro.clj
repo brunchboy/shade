@@ -48,7 +48,7 @@
         shades   (ws/shades-for-macro-editor entries)]
     (if (and macro-id (not macro))
       (layout/error-page {:status 404 :title "404 - Macro not found"})
-      (layout/render request "macro.html"
+      (layout/render request "admin-macro.html"
                      (merge (select-keys request [:active?])
                             {:user    (db/get-user {:id user-id})
                              :rooms   rooms
@@ -60,6 +60,16 @@
                                                   acc))
                                               {}
                                               shades)})))))
+
+(defn list-macros-page [{:keys [session] :as request}]
+  (let [user-id (get-in session [ :identity :id])
+        macros  (db/list-macros)
+        rooms   (db/list-rooms-for-user {:user user-id})]
+    (layout/render request "admin-macros.html"
+                   (merge (select-keys request [:active?])
+                          {:user   (db/get-user {:id user-id})
+                           :macros macros
+                           :rooms  rooms}))))
 
 (defn- merge-macro-form
   "Updates a list of current shade positions to reflect what values were
@@ -119,7 +129,7 @@
                    (not (:admin user))
                    (conj "Macros can only be viewed."))]
     (if (seq errors)
-      (layout/render request "macro.html"
+      (layout/render request "admin-macro.html"
                      (merge (select-keys request [:active?])
                             {:user   user
                              :rooms  rooms
@@ -138,7 +148,7 @@
             (create-macro-entries macro-id entries)
             (db/create-user-macro! {:user  user-id
                                     :macro macro-id})))
-        (redirect "/profile")))))
+        (redirect "/admin")))))
 
 (defn delete-macro-page [{:keys [path-params session] :as request}]
   (let [user-id  (get-in session [ :identity :id])
@@ -147,7 +157,7 @@
         macro    (when macro-id (db/get-macro {:id macro-id}))]
     (if-not macro
       (layout/error-page {:status 404 :title "404 - Macro not found"})
-      (layout/render request "delete-macro.html"
+      (layout/render request "admin-delete-macro.html"
                      (merge (select-keys request [:active?])
                             {:user   (db/get-user {:id user-id})
                              :rooms  rooms
@@ -159,4 +169,4 @@
       (layout/error-page {:status 404 :title "404 - Macro not found"})
       (do
         (db/delete-macro! {:id macro-id} )
-        (redirect "/profile")))))
+        (redirect "/admin")))))

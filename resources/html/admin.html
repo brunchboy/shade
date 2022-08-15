@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="title">Admin</h1>
+<h2 class="subtitle">Configure and Administer Shade.</h2>
+
+<div class="content">
+  <ul>
+    <li><a class="button is-link is-small" href="admin/macros">{{macros|count}} Macros</a></li>
+    <li><a class="button is-link is-small" href="admin/users">{{users|count}} Users</a></li>
+    <li><a class="button is-link is-small" href="admin/sunblock-groups">{{sunblock-groups|count}}
+        Sunblock Groups</a></li>
+  </ul>
+</div>
+{% endblock %}

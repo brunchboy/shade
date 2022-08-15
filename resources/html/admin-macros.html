@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if error %}
+<div class="notification is-danger">{{error}}</div>
+{% endif %}
+
+<h1 class="title">Administer Macros</h1>
+<h2 class="subtitle">Create, edit, and delete Macros.</h2>
+
+{% if macros|not-empty %}
+<table class="table">
+  <thead>
+    <th>Macro</th>
+    <th>Delete</th>
+  </thead>
+  <tbody>
+    {% for macro in macros %}
+    <tr>
+      <td class="vertical-middle"><a href="/admin/macro/{{macro.id}}">{{macro.name}}</a></td>
+      <td>
+        <a class="button is-danger is-small" href="/admin/delete-macro/{{macro.id}}">
+          <span class="material-icons">
+            delete_forever
+          </span>
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<a class="button is-link" href="/admin/macro/">Create Macro</a>
+
+{% endblock %}

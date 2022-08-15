@@ -4,6 +4,7 @@
   (:require
    [shade.layout :as layout]
    [shade.db.core :as db]
+   [shade.routes.admin :as admin]
    [shade.routes.login :as login]
    [shade.routes.macro :as macro]
    [shade.routes.profile :as profile]
@@ -56,7 +57,8 @@
         in-effect   (ws/macros-in-effect macros user-id)
         macro-rooms (build-macro-rooms rooms in-effect)]
     (layout/render request "home.html" (merge (select-keys request [:active?])
-                                              {:macros      (map (partial merge-macro-buttons macro-rooms) in-effect)
+                                              {:user        (db/get-user {:id user-id})
+                                               :macros      (map (partial merge-macro-buttons macro-rooms) in-effect)
                                                :rooms       rooms
                                                :macro-rooms macro-rooms}))))
 
@@ -85,16 +87,18 @@
                  middleware/wrap-formats
                  wrap-active]}
    ["/" {:get home-page}]
-   ["/delete-macro/:id" {:get  macro/delete-macro-page
-                         :post macro/macro-delete}]
    ["/about" {:get about-page}]
+   ["/admin/delete-macro/:id" {:get  macro/delete-macro-page
+                               :post macro/macro-delete}]
+   ["/admin/macro/" {:get  macro/macro-page
+                     :post macro/macro-save}]
+   ["/admin/macro/:id" {:get  macro/macro-page
+                        :post macro/macro-save}]
+   ["/admin/macros" {:get macro/list-macros-page}]
+   ["/admin" {:get admin/admin-page}]
    ["/login" {:get  login/login-page
               :post login/login-authenticate}]
    ["/logout" {:get login/logout}]
-   ["/macro/" {:get  macro/macro-page
-               :post macro/macro-save}]
-   ["/macro/:id" {:get  macro/macro-page
-                  :post macro/macro-save}]
    ["/macro-states" {:get macro/macro-states}]
    ["/profile" {:get  profile/profile-page
                 :post profile/profile-update}]
