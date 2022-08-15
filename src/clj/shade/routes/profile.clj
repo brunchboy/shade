@@ -29,6 +29,8 @@
         new-pw   (form-params "new_password")
         session  (:session request)
         user     (db/get-user {:id (get-in session [:identity :id])})
+        rooms    (db/list-rooms-for-user {:user (:id user)})
+        macros   (db/list-macros-for-user {:user (:id user)})
         errors   (cond-> []
                    (str/blank? name)
                    (conj "Name cannot be empty.")
@@ -76,7 +78,9 @@
                             {:user         (merge user {:name  name
                                                         :email email})
                              :new-password new-pw
-                             :error        (str/join " " errors)}))
+                             :error        (str/join " " errors)
+                             :rooms        rooms
+                             :macros       macros}))
       (do
         (db/update-user! (merge user
                                 {:name  name

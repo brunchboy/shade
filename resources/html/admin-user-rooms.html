@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script type="text/javascript">
+  function setRoomAvailability(checkbox,userId,roomId) {
+    const req = new XMLHttpRequest();
+    req.open("post", "/admin/set-room-availability");
+    req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    req.setRequestHeader("X-CSRF-Token", "{{csrf-token}}");
+    req.send(JSON.stringify({"user": userId,
+                             "room": roomId,
+                             "available": checkbox.checked}));
+  }
+</script>
+
+{% if error %}
+<div class="notification is-danger">{{error}}</div>
+{% endif %}
+
+<h1 class="title">Rooms Available to User “{{other.email}}”</h1>
+
+<table class="table">
+  <thead>
+    <th>Room</th>
+    <th>Available?</th>
+  </thead>
+  <tbody>
+    {% for room in all-rooms %}
+    <tr>
+      <td class="vertical-middle">
+        {{room.name}}
+      </td>
+      <td class="vertical-middle">
+        <label class="switch">
+          <input type="checkbox"{% if room.available %} checked="checked"{% endif %}} onclick=setRoomAvailability(this,'{{other.id}}','{{room.id}}')>
+          <span class="toggle round"></span>
+        </label>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p><a class="button is-link ml-6" href="/admin/users">Done</a></p>
+
+{% endblock %}

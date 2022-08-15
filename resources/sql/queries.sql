@@ -38,6 +38,17 @@ UPDATE users
 DELETE FROM users
  WHERE id = :id
 
+-- :name create-user-room! :! :n
+-- :doc creates a new entry in the users_rooms join table
+INSERT INTO users_rooms ("user", room)
+VALUES (:user, :room);
+
+-- :name delete-user-room! :! :n
+-- :doc removes an entry from the users_rooms join table
+DELETE FROM users_rooms
+ WHERE "user" = :user
+   AND room = :room;
+
 
 -- :name create-room! :! :n
 -- :doc creates a new room record
@@ -308,5 +319,5 @@ SELECT * from shades
 -- :name set-shade-sunblock-group! :! :n
 -- :doc updates the sunblock group of an existing shade record
 UPDATE shades
-   SET sunblock_group_id = :sunblock_group
+   SET sunblock_group_id = :sunblock_group, kind = :kind, controller_id = :controller-id, room = :room
  WHERE id = :id

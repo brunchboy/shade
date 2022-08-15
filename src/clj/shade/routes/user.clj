@@ -2,6 +2,7 @@
   "Supports the creation, editing, and deletion of users."
   (:require [buddy.hashers :as hashers]
             [clojure.string :as str]
+            [ring.util.json-response :refer [json-response]]
             [ring.util.response :refer [redirect]]
             [shade.db.core :as db]
             [shade.layout :as layout]
@@ -15,7 +16,10 @@
     (layout/render request "admin-users.html"
                    (merge (select-keys request [:active?])
                           {:user  (db/get-user {:id user-id})
-                           :users users
+                           :users (mapv (fn [user]
+                                          (assoc user :rooms (count (db/list-rooms-for-user {:user (:id user)}))
+                                                 :macros (count (db/list-macros-enabled-for-user {:user (:id user)}))))
+                                        users)
                            :rooms rooms}))))
 
 (defn user-page [{:keys [path-params session] :as request}]
@@ -24,7 +28,7 @@
         rooms    (db/list-rooms-for-user {:user user-id})
         other    (when other-id (db/get-user {:id other-id}))]
     (if (and other-id (not other))
-      (layout/error-page {:status 404 :title "404 - Macro not found"})
+      (layout/error-page {:status 404 :title "404 - User not found"})
       (layout/render request "admin-user.html"
                      (merge (select-keys request [:active?])
                             {:user    (db/get-user {:id user-id})
@@ -130,3 +134,32 @@
       (do
         (db/delete-user! {:id other-id} )
         (redirect "/admin/users")))))
+
+(defn user-rooms-page [{:keys [path-params session] :as request}]
+  (let [user-id   (get-in session [ :identity :id])
+        other-id  (when-let [id (:id path-params)] (UUID/fromString id))
+        rooms     (db/list-rooms-for-user {:user user-id})
+        all-rooms (db/list-rooms)
+        available (set (map :id (db/list-rooms-for-user {:user other-id})))
+        other     (when other-id (db/get-user {:id other-id}))]
+    (if (and other-id (not other))
+      (layout/error-page {:status 404 :title "404 - User not found"})
+      (layout/render request "admin-user-rooms.html"
+                     (merge (select-keys request [:active?])
+                            {:user      (db/get-user {:id user-id})
+                             :rooms     rooms
+                             :all-rooms (mapv (fn [room]
+                                                (assoc room :available (available (:id room))))
+                                              all-rooms)
+                             :other     other})))))
+
+(defn set-room-availability [{:keys [params]}]
+  (let [user (UUID/fromString (:user params))
+        room (UUID/fromString (:room params))
+        args {:user user
+              :room room}]
+    (if (:available params)
+      (db/create-user-room! args)
+      (db/delete-user-room! {:user user
+                             :room room})))
+  (json-response {:action "Room availability set"}))

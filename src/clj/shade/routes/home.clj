@@ -95,6 +95,7 @@
    ["/admin/delete-user/:id" {:get  user/delete-user-page
                                :post user/user-delete}]
    ["/admin/macros" {:get macro/list-macros-page}]
+   ["/admin/set-room-availability" {:post user/set-room-availability}]
    ["/admin/set-shade-sunblock-group" {:post sunblock/set-shade-sunblock-group}]
    ["/admin/sunblock-groups" {:get sunblock/list-groups-page}]
    ["/admin/sunblock-shades" {:get sunblock/assign-shades-page}]
@@ -103,6 +104,7 @@
    ["/admin/user/:id" {:get  user/user-page
                         :post user/user-save}]
    ["/admin/users" {:get user/list-users-page}]
+   ["/admin/user-rooms/:id" {:get user/user-rooms-page}]
    ["/admin" {:get admin/admin-page}]
    ["/login" {:get  login/login-page
               :post login/login-authenticate}]

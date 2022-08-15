@@ -13,6 +13,7 @@
     <th>User Email</th>
     <th>Active?</th>
     <th>Admin?</th>
+    <th colspan="2">Associations</th>
     <th>Delete</th>
   </thead>
   <tbody>
@@ -35,6 +36,16 @@
           verified
         </span>
         {% endif %}
+      </td>
+      <td>
+        <a class="button is-link is-small" href="/admin/user-rooms/{{other.id}}">
+          {{other.rooms}} Room{{other.rooms|pluralize}}
+        </a>
+      </td>
+      <td>
+        <a class="button is-link is-small" href="/admin/user-macros/{{other.id}}">
+          {{other.macros}} Macro{{other.macros|pluralize}}
+        </a>
       </td>
       <td>
         {% ifunequal other.id user.id %}
