@@ -73,7 +73,7 @@
   <tbody>
     {% for macro in macros %}
     <tr>
-      <td class="vertical-middle"><a href="/admin/macro/{{macro.id}}">{{macro.name}}</a></td>
+      <td class="vertical-middle"><a href="/macro/{{macro.id}}">{{macro.name}}</a></td>
       <td class="vertical-middle">
         <label class="switch">
           <input type="checkbox"{% if macro.enabled %} checked="checked"{% endif %}} onclick=setMacroVisibility(this,'{{user.id}}','{{macro.id}}')>
@@ -96,7 +96,7 @@
 {% endif %}
 
 {% if user.admin %}
-<a class="button is-link" href="/admin/macro/">Create Macro</a>
+<a class="button is-link" href="/macro/">Create Macro</a>
 {% endif %}
 
 {% endblock %}

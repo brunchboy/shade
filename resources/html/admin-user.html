@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if error %}
+<div class="notification is-danger">{{error}}</div>
+{% endif %}
+
+<h1 class="title">{% if other.id %}Edit{% else %}Create{% endif %} User</h1>
+
+<form method="post">
+  {% csrf-field %}
+  <div class="field">
+    <label class="label">Email</label>
+    <div class="control">
+      <input class="input" type="email" name="email" value="{{other.email}}"/>
+    </div>
+    <p class="help">This must be unique and is used to log in.</p>
+  </div>
+  {% if other.id %}
+  <div class="field">
+    <label class="label">Last Login</label>
+    <div class="control">
+      {{last}}
+    </div>
+  </div>
+  {% endif %}
+  <div class="field">
+    <label class="label">Name</label>
+    <div class="control">
+      <input class="input" type="text" name="name" value="{{other.name}}" />
+    </div>
+  </div>
+  <div class="field">
+    <label class="label">{% if other.id %}New {% endif %}Password</label>
+    <div class="control">
+      <input class="input" type="password" name="new_password" value="{{new-password}}" />
+    </div>
+    <p class="help">{% if other.id %}If you enter a value here, it
+    will replace the current password. {% endif %}Must be at least 12
+    characters long and contain a mix of lowercase and uppercase
+    letters, numbers, and other special characters. Ideally, use a
+    password manager to generate a good random one.</p>
+  </div>
+  <div class="field">
+    <label class="label">Active</label>
+    <div class="control">
+      <label class="switch">
+        <input type="checkbox" name="active"{% if other.is_active %} checked="checked"{% endif %}}>
+        <span class="toggle round"></span>
+      </label>
+    </div>
+  </div>
+  <div class="field">
+    <label class="label has-text-danger">Admin</label>
+    <div class="control">
+      <label class="switch">
+        <input type="checkbox" name="admin"{% if other.admin %} checked="checked"{% endif %}}>
+        <span class="toggle round"></span>
+      </label>
+    </div>
+  </div>
+  <div class="field">
+    <div class="control">
+      <input class="button is-primary mr-6" type="submit" value="{% if other.id %}Save{% else %}Create{% endif %}" />
+      <a class="button is-link" href="/admin/users">Cancel</a>
+    </div>
+  </div>
+</form>
+
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if error %}
+<div class="notification is-danger">{{error}}</div>
+{% endif %}
+
+<h1 class="title">Administer Users</h1>
+<h2 class="subtitle">Create, edit, and delete Users.</h2>
+
+<table class="table">
+  <thead>
+    <th>User Email</th>
+    <th>Active?</th>
+    <th>Admin?</th>
+    <th>Delete</th>
+  </thead>
+  <tbody>
+    {% for other in users %}
+    <tr>
+      <td class="vertical-middle">
+        <a href="/admin/user/{{other.id}}">{{other.email}}
+        {% ifequal other.id user.id %}(self){% endifequal %}</a>
+      </td>
+      <td class="vertical-middle">
+        {% if other.is_active %}
+        <span class="material-icons">
+          check_circle
+        </span>
+        {% endif %}
+      </td>
+      <td class="vertical-middle">
+        {% if other.admin %}
+        <span class="material-icons">
+          verified
+        </span>
+        {% endif %}
+      </td>
+      <td>
+        {% ifunequal other.id user.id %}
+        <a class="button is-danger is-small" href="/admin/delete-user/{{other.id}}">
+          <span class="material-icons">
+            delete_forever
+          </span>
+        </a>
+        {% endifunequal %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<a class="button is-link" href="/admin/user/">Create User</a>
+  <a class="button is-link ml-6" href="/admin">Cancel</a>
+
+{% endblock %}

@@ -1,17 +1,15 @@
 (ns shade.routes.macro
   "Supports the creation, editing, running, and querying of shade
   macros."
-  (:require
-   [clojure.string :as str]
-   [conman.core :as conman]
-   [shade.db.core :as db]
-   [shade.layout :as layout]
-   [shade.routes.websocket :as ws]
-   [ring.util.http-response :as response]
-   [ring.util.json-response :refer [json-response]]
-   [ring.util.response :refer [redirect]])
-  (:import
-   (java.util UUID)))
+  (:require [clojure.string :as str]
+            [conman.core :as conman]
+            [shade.db.core :as db]
+            [shade.layout :as layout]
+            [shade.routes.websocket :as ws]
+            [ring.util.http-response :as response]
+            [ring.util.json-response :refer [json-response]]
+            [ring.util.response :refer [redirect]])
+  (:import  (java.util UUID)))
 
 (defn macro-states [request]
   (let [user-id   (get-in request [:session :identity :id])
@@ -169,4 +167,4 @@
       (layout/error-page {:status 404 :title "404 - Macro not found"})
       (do
         (db/delete-macro! {:id macro-id} )
-        (redirect "/admin")))))
+        (redirect "/admin/macros")))))

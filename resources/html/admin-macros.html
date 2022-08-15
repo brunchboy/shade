@@ -17,7 +17,7 @@
   <tbody>
     {% for macro in macros %}
     <tr>
-      <td class="vertical-middle"><a href="/admin/macro/{{macro.id}}">{{macro.name}}</a></td>
+      <td class="vertical-middle"><a href="/macro/{{macro.id}}">{{macro.name}}</a></td>
       <td>
         <a class="button is-danger is-small" href="/admin/delete-macro/{{macro.id}}">
           <span class="material-icons">
@@ -31,6 +31,9 @@
 </table>
 {% endif %}
 
-<a class="button is-link" href="/admin/macro/">Create Macro</a>
+<p>
+  <a class="button is-link" href="/macro/">Create Macro</a>
+  <a class="button is-link ml-6" href="/admin">Cancel</a>
+</p>
 
 {% endblock %}

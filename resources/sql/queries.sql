@@ -4,13 +4,13 @@ SELECT session_id from session_store
 
 -- :name create-user! :! :n
 -- :doc creates a new user record
-INSERT INTO users (id, name, email, admin, pass)
-VALUES (gen_random_uuid(), :name, :email, :admin, :pass)
+INSERT INTO users (id, name, email, admin, pass, is_active)
+VALUES (gen_random_uuid(), :name, :email, :admin, :pass, :is_active)
 
 -- :name update-user! :! :n
 -- :doc updates an existing user record
 UPDATE users
-   SET name = :name, email = :email, pass = :pass
+   SET name = :name, email = :email, pass = :pass, admin = :admin, is_active = :is_active
  WHERE id = :id
 
 -- :name list-users :? :*

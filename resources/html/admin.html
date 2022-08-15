@@ -5,10 +5,12 @@
 
 <div class="content">
   <ul>
-    <li><a class="button is-link is-small" href="admin/macros">{{macros|count}} Macros</a></li>
-    <li><a class="button is-link is-small" href="admin/users">{{users|count}} Users</a></li>
-    <li><a class="button is-link is-small" href="admin/sunblock-groups">{{sunblock-groups|count}}
+    <li><a class="button is-link vertical-middle" href="admin/macros">{{macros|count}} Macros</a></li>
+    <li><a class="button is-link vertical-middle" href="admin/users">{{users|count}} Users</a></li>
+    {% if false %}
+    <li><a class="button is-link vertical-middle" href="admin/sunblock-groups">{{sunblock-groups|count}}
         Sunblock Groups</a></li>
+    {% endif %}
   </ul>
 </div>
 {% endblock %}

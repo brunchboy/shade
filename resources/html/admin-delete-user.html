@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="title">Delete User “{{other.name}}”</h1>
+<h2 class="subtitle">Permanently Remove a User.</h2>
+
+<p class="mb-3">Are you sure you want to delete “{{other.name}}”? This
+  action cannot be undone.</p>
+
+
+<form method="post">
+  {% csrf-field %}
+  <div class="field">
+    <div class="control">
+      <input class="button is-danger" type="submit" value="Delete" />
+      <a class="button is-link ml-6" href="/admin/users">Cancel</a>
+    </div>
+  </div>
+</form>
+
+{% endblock %}

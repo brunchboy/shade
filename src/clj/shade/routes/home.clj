@@ -10,6 +10,7 @@
    [shade.routes.profile :as profile]
    [shade.routes.room :as room]
    [shade.routes.status :as status]
+   [shade.routes.user :as user]
    [shade.routes.websocket :as ws]
    [clojure.set :as set]
    [clojure.string :as str]
@@ -90,15 +91,22 @@
    ["/about" {:get about-page}]
    ["/admin/delete-macro/:id" {:get  macro/delete-macro-page
                                :post macro/macro-delete}]
-   ["/admin/macro/" {:get  macro/macro-page
-                     :post macro/macro-save}]
-   ["/admin/macro/:id" {:get  macro/macro-page
-                        :post macro/macro-save}]
+   ["/admin/delete-user/:id" {:get  user/delete-user-page
+                               :post user/user-delete}]
    ["/admin/macros" {:get macro/list-macros-page}]
+   ["/admin/user/" {:get  user/user-page
+                     :post user/user-save}]
+   ["/admin/user/:id" {:get  user/user-page
+                        :post user/user-save}]
+   ["/admin/users" {:get user/list-users-page}]
    ["/admin" {:get admin/admin-page}]
    ["/login" {:get  login/login-page
               :post login/login-authenticate}]
    ["/logout" {:get login/logout}]
+   ["/macro/" {:get  macro/macro-page
+                     :post macro/macro-save}]
+   ["/macro/:id" {:get  macro/macro-page
+                        :post macro/macro-save}]
    ["/macro-states" {:get macro/macro-states}]
    ["/profile" {:get  profile/profile-page
                 :post profile/profile-update}]

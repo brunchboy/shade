@@ -1,12 +1,11 @@
 (ns shade.routes.profile
   "Supports the profile page."
-  (:require
-   [buddy.hashers :as hashers]
-   [clojure.string :as str]
-   [ring.util.response :refer [redirect]]
-   [shade.auth :as auth]
-   [shade.db.core :as db]
-   [shade.layout :as layout]))
+  (:require [buddy.hashers :as hashers]
+            [clojure.string :as str]
+            [ring.util.response :refer [redirect]]
+            [shade.auth :as auth]
+            [shade.db.core :as db]
+            [shade.layout :as layout]))
 
 (defn profile-page [request]
   (let [user-id (get-in request [:session :identity :id])
@@ -79,8 +78,9 @@
                              :new-password new-pw
                              :error        (str/join " " errors)}))
       (do
-        (db/update-user! (merge user {:name  name
-                                      :email email}
+        (db/update-user! (merge user
+                                {:name  name
+                                 :email email}
                                 (when-not (str/blank? new-pw)
                                   {:pass (hashers/derive new-pw)})))
         (when-not (str/blank? new-pw) (auth/clear-user-sessions user))
