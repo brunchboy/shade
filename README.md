@@ -1,8 +1,26 @@
 # shade
 
-A web application for allowing local and remote control of our
-automated blinds, with support for guest access (control of guest room
-and living room blinds) and date ranges, for when we have pet sitters.
+A web application for allowing local and remote control of automated
+blinds.
+
+ <image align="right" width="585" height="1266"
+ src="doc/assets/Room.PNG">
+Uses a set of four photographs of each room, with the blackout and
+screen shades all open or closed, to create a composite image showing
+the current state of the room, and allowing users to tap on the photo
+to specify the positions to which they want specific blinds to move.
+Also allows the definition of macros to quickly move groups of blinds
+to specific positions. Macros can be run globally or within individual
+rooms.
+
+Incorporates astronomical algorithms and open weather data so that
+blinds can be closed on warm days during the part of the day where the
+sun is shining through them, and can allow you to go to sleep enjoying
+cityscape views, but close the blinds at astronomical dawn so you
+don't get awakened earlier than you want.
+
+Provides support for guest access (control of specific rooms, or
+periodic activation for pet sitters).
 
 In my setup, relies on Apache to terminate SSL using a
 LetsEncrypt-managed certificate, for a subdomain that is reverse
