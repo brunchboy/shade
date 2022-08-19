@@ -24,7 +24,7 @@ ordinary HTTP communication.
 Offers a web socket used by a daemon running on our home network which
 relays queries and commands to the blind controller software.
 
- <image align="left" width="585" height="1200"
+ <image align="right" width="293" height="600"
  src="doc/assets/Status.PNG">
 
 Incorporates astronomical algorithms and open weather data so that
