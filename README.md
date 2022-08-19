@@ -1,10 +1,10 @@
 # shade
 
+ <image align="right" width="585" height="1066"
+ src="doc/assets/Room.PNG">
 A web application for allowing local and remote control of automated
 blinds.
 
- <image align="right" width="585" height="1266"
- src="doc/assets/Room.PNG">
 Uses a set of four photographs of each room, with the blackout and
 screen shades all open or closed, to create a composite image showing
 the current state of the room, and allowing users to tap on the photo
