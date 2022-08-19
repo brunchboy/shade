@@ -13,12 +13,6 @@ Also allows the definition of macros to quickly move groups of blinds
 to specific positions. Macros can be run globally or within individual
 rooms.
 
-Incorporates astronomical algorithms and open weather data so that
-blinds can be closed on warm days during the part of the day where the
-sun is shining through them, and can allow you to go to sleep enjoying
-cityscape views, but close the blinds at astronomical dawn so you
-don't get awakened earlier than you want.
-
 Provides support for guest access (control of specific rooms, or
 periodic activation for pet sitters).
 
@@ -29,6 +23,15 @@ ordinary HTTP communication.
 
 Offers a web socket used by a daemon running on our home network which
 relays queries and commands to the blind controller software.
+
+ <image align="left" width="585" height="1200"
+ src="doc/assets/Status.PNG">
+
+Incorporates astronomical algorithms and open weather data so that
+blinds can be closed on warm days during the part of the day where the
+sun is shining through them, and can allow you to go to sleep enjoying
+cityscape views, but close the blinds at astronomical dawn so you
+don't get awakened earlier than you want.
 
 Originally generated using Luminus version "4.38"
 
