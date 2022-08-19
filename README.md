@@ -79,9 +79,9 @@ does that on a modern Linux, `shade.service`:
 
     [Service]
     Type=simple
-    Environment="DATABASE_URL=jdbc:postgresql:shade?user=shade&password=...elided..." "SHADE_WS_TOKEN=someSecretToken" "JAVA_TOOL_OPTIONS=-Xmx256m" "NREPL_PORT=7001"
+    Environment="DATABASE_URL=jdbc:postgresql:shade?user=shade&password=...elided..." "WEBSOCKET_TOKEN=...elided..."  "OPENWEATHER_API_KEY=...elided..." "JAVA_TOOL_OPTIONS=-Xmx256m" "NREPL_PORT=7001"
     SuccessExitStatus=143
-    ExecStart=/usr/bin/java -jar /usr/local/lib/shade.jar
+    ExecStart=/usr/bin/java -Dconf=/usr/local/etc/shade.edn -jar /usr/local/lib/shade.jar
     KillMode=process
     Restart=on-failure
     User=james
@@ -90,13 +90,35 @@ does that on a modern Linux, `shade.service`:
     [Install]
     WantedBy=multi-user.target
 
+Because this file contains secrets such as passwords and tokens, you
+should make sure it is readable only by root. And as you may have
+noticed within it, there is a reference to a less-sensitive
+configuration file that is read by the web server at startup. In my
+case that is located at `/usr/local/etc/shade.edn`, and has the
+following contents:
+
+```clojure
+{:location {:latitude  43.07555555555556
+            :longitude -89.38611111111112
+            :timezone  "America/Chicago"}
+ :cdn-url  "https://d22vjwe5tlkwmh.cloudfront.net/shade"}
+```
+
+This reflects the location and timezone to be used for astronomical
+calculations, and the CloudFront content delivery network used to
+efficiently serve the room images. You can skip using a CDN like that
+and embed the images directly in the `img` subdirectory of the
+`resources` folder, so they will be served by the web application
+directly. If you do that, simply update the `:cdn-url` to point at
+that path within your web application.
+
 To start the blind controller daemon, which needs to run on the same
 LAN as the Control4 Director appliance, you will need to set
 environment variables `C4_USERNAME` and `C4_DIRECTOR_IP` to your
 Control4 user name and the IP address of the Control4 Director
 appliance on your local LAN. Your key ring will need to contain the
 password for that account (under an entry for `control4.com`), and the
-token you used passed as `SHADE_WS_TOKEN` above as the password for
+token you used passed as `WEBSOCKET_TOKEN` above as the password for
 the account `x-shade-token` under an entry for
 `shade.deepsymmetry.org`. Then you can launch the daemon using:
 
@@ -142,6 +164,52 @@ has access to my system keychain for the above secrets,
 Of course you will want to adjust the environment variable setting for
 `C4_DIRECTOR_IP`, `C4_USERNAME`, and `SHADE_WS_URL` inside the
 `EnvironmentVariables` `dict` to reflect your actual setup.
+
+## Development
+
+For development, you will want to bring up the application in a local
+REPL for rapid testing of ideas. To facilitate that, you can put the
+following content into the file `dev-config.edn` at the top level of
+the project, and update it to reflect your setup. This is used only
+for local development and is not committed to git.
+
+As noted above, you can serve the room images directly from inside
+your web application rather than setting up a content distribution
+network to serve them if you want to keep things simple.
+
+You will need to obtain your own free API key for OpenWeather,
+however. You can share that between development and production; the
+limits on a free account are far higher than Shade needs.
+
+```clojure
+;; WARNING:
+;;
+;; The dev-config.edn file is used for local environment variables,
+;; such as database credentials. This file is listed in .gitignore and
+;; will be excluded from version control by Git.
+
+{:dev        true
+ :port       3000
+ ;; when :nrepl-port is set the application starts the nREPL server on load
+ :nrepl-port 7000
+
+ :location {:latitude  43.07555555555556
+            :longitude -89.38611111111112
+            :timezone  "America/Chicago"}
+
+ ;; set your dev database connection URL here
+ :database-url "jdbc:postgresql://localhost/shade?user=shade&password=...elided..."
+
+;; Set the URL from which large images and other resources are served here
+ :cdn-url "https://d22vjwe5tlkwmh.cloudfront.net/shade"
+
+ ;; This controls the value of the special x-shade-token header that is required to open a web socket connection.
+ :websocket-token "...elided..."
+
+ ;; The API key used to access OpenWeather forecast and current conditions information.
+ :openweather-api-key "...elided..."
+ }
+```
 
 ## License
 
