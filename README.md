@@ -33,8 +33,6 @@ sun is shining through them, and can allow you to go to sleep enjoying
 cityscape views, but close the blinds at astronomical dawn so you
 don't get awakened earlier than you want.
 
-Originally generated using Luminus version "4.38"
-
 ## Prerequisites
 
 You will need [Leiningen][1] 2.0 or above installed, and a recent Java
@@ -130,36 +128,38 @@ an agent under my own login on a Mac Mini in our network rack, so it
 has access to my system keychain for the above secrets,
 `~/Library/LaunchAgents/org.deepsymmetry.shades-agent.plist`:
 
-    <?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-    <plist version="1.0">
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>EnvironmentVariables</key>
     <dict>
-        <key>EnvironmentVariables</key>
-        <dict>
-            <key>C4_DIRECTOR_IP</key>
-            <string>192.168.1.150</string>
-            <key>C4_USERNAME</key>
-            <string>user@domain.org</string>
-            <key>SHADE_WS_URL</key>
-            <string>wss://shade.my.domain</string>
-        </dict>
-        <key>KeepAlive</key>
-        <true/>
-        <key>Label</key>
-        <string>org.deepsymmetry.shaded</string>
-        <key>ProgramArguments</key>
-        <array>
-            <string>/usr/local/bin/python3</string>
-            <string>/Users/james/git/shade/src/python/client.py</string>
-        </array>
-        <key>RunAtLoad</key>
-        <true/>
-        <key>StandardErrorPath</key>
-        <string>/tmp/org.deepsymmetry.shaded.stderr</string>
-        <key>StandardOutPath</key>
-        <string>/tmp/org.deepsymmetry.shaded.stdout</string>
+        <key>C4_DIRECTOR_IP</key>
+        <string>192.168.1.150</string>
+        <key>C4_USERNAME</key>
+        <string>user@domain.org</string>
+        <key>SHADE_WS_URL</key>
+        <string>wss://shade.my.domain</string>
     </dict>
-    </plist>
+    <key>KeepAlive</key>
+    <true/>
+    <key>Label</key>
+    <string>org.deepsymmetry.shaded</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/python3</string>
+        <string>/Users/james/git/shade/src/python/client.py</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardErrorPath</key>
+    <string>/tmp/org.deepsymmetry.shaded.stderr</string>
+    <key>StandardOutPath</key>
+    <string>/tmp/org.deepsymmetry.shaded.stdout</string>
+</dict>
+</plist>
+```
 
 Of course you will want to adjust the environment variable setting for
 `C4_DIRECTOR_IP`, `C4_USERNAME`, and `SHADE_WS_URL` inside the
@@ -211,8 +211,13 @@ limits on a free account are far higher than Shade needs.
  }
 ```
 
+Once again, because this file contains secrets, you will want to make
+sure it is readable only by your account.
+
 ## License
 
 Released under the MIT license, http://opensource.org/licenses/MIT
+
+Originally generated using Luminus version 4.38.
 
 Copyright © 2022 James Elliott
