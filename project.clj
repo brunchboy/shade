@@ -39,6 +39,8 @@
                  [ring/ring-core "1.9.5"]
                  [ring/ring-defaults "0.3.3"]
                  [ring-json-response "0.2.0"]
+                 [ring-logger "1.1.1"]
+                 [ring.middleware.conditional "0.2.0"]
                  [selmer "1.12.50"]
                  [clj-http "3.12.3"]]
 

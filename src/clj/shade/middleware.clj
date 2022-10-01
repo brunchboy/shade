@@ -8,6 +8,8 @@
     [muuntaja.middleware :refer [wrap-format wrap-params]]
     [shade.config :refer [env]]
     [shade.db.core :as db]
+    [ring.logger :as logger]
+    [ring.middleware.conditional :refer [if-url-starts-with]]
     [ring.middleware.flash :refer [wrap-flash]]
     [ring.middleware.defaults :refer [site-defaults wrap-defaults]]
     [ring.util.response :refer [redirect]]
@@ -103,8 +105,23 @@
         (wrap-authentication backend)
         (wrap-authorization backend))))
 
+(defn wrap-logging [handler]
+  (logger/wrap-with-logger handler {:redact-key? (conj logger/default-redact-key? :new-password)
+                                    :request-keys (conj logger/default-request-keys :identity)}))
+
 (defn wrap-base [handler]
   (-> ((:middleware defaults) handler)
+      (if-url-starts-with ["/admin"
+                           "/login"
+                           "/logout"
+                           "/macro/"
+                           "/profile"
+                           "/room"
+                           "/run"
+                           "/set-macro-visibility"
+                           "/set-shade-levels"
+                           "/shade-tapped"]
+        wrap-logging)
       wrap-auth
       wrap-flash
       (wrap-defaults (-> site-defaults
