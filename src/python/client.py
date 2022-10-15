@@ -19,11 +19,17 @@ import asyncio
 import json
 import edn_format
 
+from datetime import datetime
+
 from pyControl4.account import C4Account
 from pyControl4.director import C4Director
 from pyControl4.blind import C4Blind
 from pyControl4.error_handling import BadCredentials, BadToken
 
+
+def log(s):
+    print(datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " ", end = '')
+    print(s)
 
 # See https://github.com/home-assistant/core/blob/dev/homeassistant/components/control4/__init__.py
 # and https://github.com/home-assistant/core/blob/dev/homeassistant/components/control4/director_utils.py
@@ -38,13 +44,13 @@ async def login_to_director() -> None:
     try:
         await account.getAccountBearerToken()
     except BadCredentials as exception:
-        print("Error authenticating with Control4 account API, incorrect username or password: {}".format(exception))
+        log("Error authenticating with Control4 account API, incorrect username or password: {}".format(exception))
         return
     controllers = await account.getAccountControllers()
     director_bearer_token = await account.getDirectorBearerToken(controllers["controllerCommonName"])
     global director
     director = C4Director(os.environ["C4_DIRECTOR_IP"], director_bearer_token["token"])
-    print("Logged in to Control4 director, token expires: {}".format(director_bearer_token["token_expiration"]))
+    log("Logged in to Control4 director, token expires: {}".format(director_bearer_token["token_expiration"]))
 
 
 asyncio.run(login_to_director())
@@ -68,7 +74,7 @@ async def set_level(spec):
     try:
         return await blind.setLevelTarget(spec.get(kw_level))
     except BadToken:
-        print("Updating Control4 director token")
+        log("Updating Control4 director token")
         await login_to_director()
         return await blind.setLevelTarget(spec.get(kw_level))
 
@@ -83,7 +89,7 @@ async def report_status(ws, blinds):
         try:
             result[id] = { kw_level: await blind.getLevel(), kw_stopped: await blind.getStopped()}
         except BadToken:
-            print("Updating Control4 director token")
+            log("Updating Control4 director token")
             await login_to_director()
             result[id] = { kw_level: await blind.getLevel(), kw_stopped: await blind.getStopped()}
     ws.send(edn_format.dumps({kw_action: kw_status, kw_blinds: result}))
@@ -93,7 +99,7 @@ async def report_positions(ws):
     try:
         result = await director.getAllItemVariableValue("Level,Target+Level,Stopped")
     except BadToken:
-            print("Updating Control4 director token")
+            log("Updating Control4 director token")
             await login_to_director()
             result = await director.getAllItemVariableValue("Level,Target+Level,Stopped")
     ws.send(edn_format.dumps({kw_action: kw_positions, kw_positions: result}))
@@ -103,7 +109,7 @@ async def report_batteries(ws):
     try:
         result = await director.getAllItemVariableValue("Battery+Level")
     except BadToken:
-            print("Updating Control4 director token")
+            log("Updating Control4 director token")
             await login_to_director()
             result = await director.getAllItemVariableValue("Battery+Level")
     ws.send(edn_format.dumps({kw_action: kw_batteries, kw_batteries: result}))
@@ -124,23 +130,23 @@ def on_message(ws, message):
     else:
         ws.send(edn_format.dumps({kw_action: kw_error, kw_message: "Unknown action", kw_details: action}))
 
-    print("Processed: " + message)
+    log("Processed: " + message)
 
 def on_error(ws, error):
-    print(error)
+    log(error)
 
 def on_close(ws, close_status_code, close_msg):
-    print("### closed ###")
+    log("### closed ###")
 
 def on_open(ws):
-    print("Opened connection")
+    log("Opened connection")
 
 if __name__ == "__main__":
     # websocket.enableTrace(True)
     token = keyring.get_password("shade.deepsymmetry.org", "x-shade-token")
     # For local development/testing, set SHADE_WS_URL to "ws://localhost:3000/ws"
     ws_url = os.environ.get("SHADE_WS_URL", "wss://shade.deepsymmetry.org/ws")
-    print("Opening web socket to " + ws_url)
+    log("Opening web socket to " + ws_url)
     ws = websocket.WebSocketApp(ws_url,
                                 on_open=on_open,
                                 on_message=on_message,
