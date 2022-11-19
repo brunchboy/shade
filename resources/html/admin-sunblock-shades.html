@@ -22,12 +22,14 @@
 {% if shades|not-empty %}
 <table class="table">
   <thead>
+    <th>Room</th>
     <th>Shade</th>
     <th>Sunblock Group</th>
   </thead>
   <tbody>
     {% for shade in shades %}
     <tr>
+      <td class="vertical-middle">{{shade.room-name}}</td>
       <td class="vertical-middle">{{shade.name}}</td>
       <td class="field">
         <div class="select is-primary">

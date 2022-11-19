@@ -57,7 +57,11 @@
                                            (assoc shade :group (first (filter (fn [group]
                                                                                 (= (:id group)
                                                                                    (:sunblock_group_id shade)))
-                                                                              groups))))
+                                                                              groups))
+                                                  :room-name (-> (filter (fn [room] (= (:id room) (:room shade)))
+                                                                         rooms)
+                                                                 first
+                                                                 :name)))
                                          shades)
                            :rooms  rooms}))))
 
