@@ -52,8 +52,8 @@ DELETE FROM users_rooms
 
 -- :name create-room! :! :n
 -- :doc creates a new room record
-INSERT INTO rooms (id, name, sunrise_protect)
-VALUES (gen_random_uuid(), :name, :sunrise_protect)
+INSERT INTO rooms (id, name, sunrise_protect, image_width, image_height)
+VALUES (gen_random_uuid(), :name, :sunrise_protect, 4032, 3024)
 
 -- :name update-room! :! :n
 -- :doc updates an existing room record
@@ -87,13 +87,13 @@ DELETE FROM rooms
 
 -- :name create-shade! :! :n
 -- :doc creates a new shade record
-INSERT INTO shades (id, name, kind, controller_id, room)
-VALUES (gen_random_uuid(), :name, :kind, :controller-id, :room)
+INSERT INTO shades (id, name, kind, controller_id, room, parent_id)
+VALUES (gen_random_uuid(), :name, :kind, :controller-id, :room, :parent-id)
 
 -- :name update-shade! :! :n
 -- :doc updates an existing shade record
 UPDATE shades
-   SET name = :name, kind = :kind, controller_id = :controller-id, room = :room
+   SET name = :name, kind = :kind, controller_id = :controller-id, room = :room, parent_id = :parent-id
  WHERE id = :id
 
 -- :name list-shades :? :*
@@ -319,7 +319,7 @@ SELECT * from shades
 -- :name set-shade-sunblock-group! :! :n
 -- :doc updates the sunblock group of an existing shade record
 UPDATE shades
-   SET sunblock_group_id = :sunblock_group, kind = :kind, controller_id = :controller-id, room = :room
+   SET sunblock_group_id = :sunblock_group
  WHERE id = :id
 
 
