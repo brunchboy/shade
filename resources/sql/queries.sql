@@ -321,3 +321,9 @@ SELECT * from shades
 UPDATE shades
    SET sunblock_group_id = :sunblock_group, kind = :kind, controller_id = :controller-id, room = :room
  WHERE id = :id
+
+
+-- :name create-sunblock-obstacle! :! :n
+-- :doc creates a new sunblock obstacle record
+INSERT INTO sunblock_obstacles (id, shade_id, name, min_azimuth, max_azimuth, min_elevation, max_elevation)
+VALUES (gen_random_uuid(), :shade_id, :name, :min_azimuth, :max_azimuth, :min_elevation, :max_elevation)

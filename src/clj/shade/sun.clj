@@ -172,7 +172,7 @@
   basic adjustment for refraction by the atmosphere. The actual
   position of the sun can be calculated by subtracting the returned
   refraction correction from the reported elevation."
-  [ t latitude longitude]
+  [t latitude longitude]
   (let [latitude-radians       (degrees-to-radians latitude)
         longitude-radians      (degrees-to-radians longitude)
         decimal-date           (decimal-days-since-2000 t)

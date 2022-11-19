@@ -367,9 +367,9 @@
   []
   (not (or (when-let [weather (:weather @weather/state)]
              (and (recent-enough? weather)
-                  (< (:temperature weather) sunblock-temperature-threshold)))  ; It was recently enough cold enough.
+                  (< (:temperature weather) sunblock-temperature-threshold)))  ; It was recently enough too cold.
            (when-let [forecast (weather/forecast-for-today)]
-             (< (:high forecast) sunblock-temperature-threshold)))))  ; The forecast high for the day is cold enough.
+             (< (:high forecast) sunblock-temperature-threshold)))))  ; The forecast high for the day is too cold.
 
 (def sunblock-cloud-cover-threshold
   "The cloud cover percentage above which we suppress closing of shades
