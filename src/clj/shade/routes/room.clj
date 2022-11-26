@@ -29,7 +29,7 @@
         in-effect (ws/macros-in-effect macros user-id)]
     (if (and room (some #(= (:id %) room-id) rooms))
       (layout/render request "room.html"
-                     (merge (select-keys request [:active?])
+                     (merge (select-keys request [:active? :admin?])
                             {:onload "draw();"
                              :cdn    (env :cdn-url)
                              :user   (db/get-user {:id user-id})

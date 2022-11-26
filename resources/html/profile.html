@@ -57,6 +57,7 @@
   </div>
 </form>
 
+{% if active? %}
 <h2 class="title is-5 mt-6">Macros</h2>
 <h3 class="subtitle is-6">{% if user.admin %}Edit{% else %}View{% endif %}
   macros, or choose which appear on your home and room pages.</h3>
@@ -93,6 +94,7 @@
     {% endfor %}
   </tbody>
 </table>
+{% endif %}
 {% endif %}
 
 {% if user.admin %}

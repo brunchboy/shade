@@ -7,7 +7,7 @@
    [shade.layout :as layout]))
 
 (defn login-page [request]
-  (layout/render request "login.html" (select-keys request [:active?])))
+  (layout/render request "login.html" (select-keys request [:active? :admin?])))
 
 (defn login-authenticate
   "Check request username and password against authdata

@@ -47,7 +47,7 @@
     (if (and macro-id (not macro))
       (layout/error-page {:status 404 :title "404 - Macro not found"})
       (layout/render request "admin-macro.html"
-                     (merge (select-keys request [:active?])
+                     (merge (select-keys request [:active? :admin?])
                             {:user    (db/get-user {:id user-id})
                              :rooms   rooms
                              :macro   macro
@@ -64,7 +64,7 @@
         macros  (db/list-macros)
         rooms   (db/list-rooms-for-user {:user user-id})]
     (layout/render request "admin-macros.html"
-                   (merge (select-keys request [:active?])
+                   (merge (select-keys request [:active? :admin?])
                           {:user   (db/get-user {:id user-id})
                            :macros macros
                            :rooms  rooms}))))
@@ -128,7 +128,7 @@
                    (conj "Macros can only be viewed."))]
     (if (seq errors)
       (layout/render request "admin-macro.html"
-                     (merge (select-keys request [:active?])
+                     (merge (select-keys request [:active? :admin?])
                             {:user   user
                              :rooms  rooms
                              :macro  {:id   macro-id
@@ -156,7 +156,7 @@
     (if-not macro
       (layout/error-page {:status 404 :title "404 - Macro not found"})
       (layout/render request "admin-delete-macro.html"
-                     (merge (select-keys request [:active?])
+                     (merge (select-keys request [:active? :admin?])
                             {:user   (db/get-user {:id user-id})
                              :rooms  rooms
                              :macro  macro})))))

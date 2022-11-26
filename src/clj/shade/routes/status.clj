@@ -39,7 +39,7 @@
         user-id   (get-in request [:session :identity :id])
         rooms     (db/list-rooms-for-user {:user user-id})]
     (layout/render request "status.html"
-                   (merge (select-keys request [:active?])
+                   (merge (select-keys request [:active? :admin?])
                           {:user              (db/get-user {:id user-id})
                            :rooms             rooms
                            :events            (format-events)

@@ -14,7 +14,7 @@
         users   (db/list-users)
         rooms   (db/list-rooms-for-user {:user user-id})]
     (layout/render request "admin-users.html"
-                   (merge (select-keys request [:active?])
+                   (merge (select-keys request [:active? :admin?])
                           {:user  (db/get-user {:id user-id})
                            :users (mapv (fn [user]
                                           (assoc user :rooms (count (db/list-rooms-for-user {:user (:id user)}))
@@ -30,7 +30,7 @@
     (if (and other-id (not other))
       (layout/error-page {:status 404 :title "404 - User not found"})
       (layout/render request "admin-user.html"
-                     (merge (select-keys request [:active?])
+                     (merge (select-keys request [:active? :admin?])
                             {:user    (db/get-user {:id user-id})
                              :rooms   rooms
                              :other   other
@@ -89,7 +89,7 @@
                    (conj "Another user with this email already exists."))]
     (if (seq errors)
       (layout/render request "admin-user.html"
-                     (merge (select-keys request [:active?])
+                     (merge (select-keys request [:active? :admin?])
                             {:user  user
                              :rooms rooms
                              :other (merge other
@@ -122,7 +122,7 @@
     (if-not other
       (layout/error-page {:status 404 :title "404 - User not found"})
       (layout/render request "admin-delete-user.html"
-                     (merge (select-keys request [:active?])
+                     (merge (select-keys request [:active? :admin?])
                             {:user   (db/get-user {:id user-id})
                              :rooms  rooms
                              :other  other})))))
@@ -145,7 +145,7 @@
     (if (and other-id (not other))
       (layout/error-page {:status 404 :title "404 - User not found"})
       (layout/render request "admin-user-rooms.html"
-                     (merge (select-keys request [:active?])
+                     (merge (select-keys request [:active? :admin?])
                             {:user      (db/get-user {:id user-id})
                              :rooms     rooms
                              :all-rooms (mapv (fn [room]
@@ -174,7 +174,7 @@
     (if (and other-id (not other))
       (layout/error-page {:status 404 :title "404 - User not found"})
       (layout/render request "admin-user-macros.html"
-                     (merge (select-keys request [:active?])
+                     (merge (select-keys request [:active? :admin?])
                             {:user   (db/get-user {:id user-id})
                              :rooms  rooms
                              :macros (mapv (fn [macro]

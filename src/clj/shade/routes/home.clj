@@ -58,7 +58,7 @@
         rooms       (db/list-rooms-for-user {:user user-id})
         in-effect   (ws/macros-in-effect macros user-id)
         macro-rooms (build-macro-rooms rooms in-effect)]
-    (layout/render request "home.html" (merge (select-keys request [:active?])
+    (layout/render request "home.html" (merge (select-keys request [:active? :admin?])
                                               {:user        (db/get-user {:id user-id})
                                                :macros      (map (partial merge-macro-buttons macro-rooms) in-effect)
                                                :rooms       rooms
@@ -67,7 +67,7 @@
 (defn about-page [request]
   (let [user-id (get-in request [:session :identity :id])
         rooms   (db/list-rooms-for-user {:user user-id})]
-    (layout/render request "about.html" (merge (select-keys request [:active?])
+    (layout/render request "about.html" (merge (select-keys request [:active? :admin?])
                                                {:rooms rooms}))))
 
 
@@ -76,18 +76,20 @@
   (ws/move-shades params)
   (json-response {:action "Shade levels set."}))
 
-(defn wrap-active [handler]
+(defn wrap-user-flags [handler]
   (fn [request]
     (if-let [id (get-in request [:identity :id])]
       (let [user (db/get-user {:id id})]
-        (handler (assoc request :active? (:is_active user))))
+        (handler (assoc request
+                        :active? (:is_active user)
+                        :admin? (:admin user))))
       (handler request))))
 
 (defn home-routes []
   [""
    {:middleware [middleware/wrap-csrf
                  middleware/wrap-formats
-                 wrap-active]}
+                 wrap-user-flags]}
    ["/" {:get home-page}]
    ["/about" {:get about-page}]
    ["/admin/delete-macro/:id" {:get  macro/delete-macro-page

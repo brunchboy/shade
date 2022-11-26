@@ -36,7 +36,7 @@
         groups  (db/list-sunblock-groups)
         rooms   (db/list-rooms-for-user {:user user-id})]
     (layout/render request "admin-sunblock-groups.html"
-                   (merge (select-keys request [:active?])
+                   (merge (select-keys request [:active? :admin?])
                           {:user   (db/get-user {:id user-id})
                            :groups (mapv (fn [group]
                                            (assoc group :count (count (db/get-sunblock-group-shades
@@ -50,7 +50,7 @@
         shades  (filter #(= (:kind %) "blackout") (db/list-shades))
         rooms   (db/list-rooms-for-user {:user user-id})]
     (layout/render request "admin-sunblock-shades.html"
-                   (merge (select-keys request [:active?])
+                   (merge (select-keys request [:active? :admin?])
                           {:user   (db/get-user {:id user-id})
                            :groups groups
                            :shades (mapv (fn [shade]

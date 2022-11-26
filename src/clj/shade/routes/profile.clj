@@ -12,7 +12,7 @@
         rooms   (db/list-rooms-for-user {:user user-id})
         macros  (db/list-macros-for-user {:user user-id})]
     (layout/render request "profile.html"
-                   (merge (select-keys request [:active?])
+                   (merge (select-keys request [:active? :admin?])
                           {:user   (db/get-user {:id user-id})
                            :rooms  rooms
                            :macros macros}))))
@@ -74,7 +74,7 @@
                    (conj "New password must contain a special character that is not a letter or number."))]
     (if (seq errors)
       (layout/render request "profile.html"
-                     (merge (select-keys request [:active?])
+                     (merge (select-keys request [:active? :admin?])
                             {:user         (merge user {:name  name
                                                         :email email})
                              :new-password new-pw

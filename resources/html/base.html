@@ -40,7 +40,9 @@
                       <a href="/login" class="navbar-item is-active">Login</a>
                       {% else %}
                       <a href="/profile" class="navbar-item{% ifequal page "profile.html" %} is-active{% endifequal %}">Profile</a>
+                      {% if admin? %}
                       <a href="/admin" class="navbar-item{% ifequal page|subs:0:5 "admin" %} is-active{% endifequal %}">Admin</a>
+                      {% endif %}
                       <a href="/logout" class="navbar-item">Logout</a>
                       {% endifequal %}
                       <!-- <a href="/about" class="navbar-item{% ifequal page "about.html" %} is-active{% endifequal %}">About</a> -->
