@@ -227,8 +227,8 @@
   [timestamp]
   (if-let [localized (localize-timestamp timestamp)]
     (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
-          date           (jt/local-date-time localized)
-          today          (jt/local-date-time (jt/instant) local-timezone)
+          date           (jt/truncate-to (jt/local-date-time localized) :days)
+          today          (jt/truncate-to (jt/local-date-time (jt/instant) local-timezone) :days)
           days           (jt/as (jt/duration date today) :days)]
       (str (case days
              0           "Today"
