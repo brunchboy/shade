@@ -46,11 +46,19 @@ Currently, it is unable to retry when the connection to the server is
 lost, so you need to wrap it in a mechanism that respawns it when it
 dies.
 
+For weather support, you will need an API key from [OpenWeather][6].
+To be notified when there are problems communicating with the blind
+controller daemon, you will need to set up an [IFTTT web hook][7]. The
+keys for both of these will go in your environment variables as
+described above.
+
 [1]: https://github.com/technomancy/leiningen
 [2]: https://pypi.org/project/websocket-client/
 [3]: https://pypi.org/project/edn-format/
 [4]: https://pypi.org/project/keyring/
 [5]: https://pypi.org/project/pyControl4/
+[6]: https://openweathermap.org
+[7]: https://ifttt.com/maker_webhooks
 
 ## Running
 
@@ -77,7 +85,7 @@ does that on a modern Linux, `shade.service`:
 
     [Service]
     Type=simple
-    Environment="DATABASE_URL=jdbc:postgresql:shade?user=shade&password=...elided..." "WEBSOCKET_TOKEN=...elided..."  "OPENWEATHER_API_KEY=...elided..." "JAVA_TOOL_OPTIONS=-Xmx256m" "NREPL_PORT=7001"
+    Environment="DATABASE_URL=jdbc:postgresql:shade?user=shade&password=...elided..." "WEBSOCKET_TOKEN=...elided..."  "OPENWEATHER_API_KEY=...elided..." "IFTTT_WEBHOOK_KEY=...elided..." "JAVA_TOOL_OPTIONS=-Xmx256m" "NREPL_PORT=7001"
     SuccessExitStatus=143
     ExecStart=/usr/bin/java -Dconf=/usr/local/etc/shade.edn -jar /usr/local/lib/shade.jar
     KillMode=process
@@ -220,4 +228,4 @@ Released under the MIT license, http://opensource.org/licenses/MIT
 
 Originally generated using Luminus version 4.38.
 
-Copyright © 2022 James Elliott
+Copyright © 2022-2023 James Elliott

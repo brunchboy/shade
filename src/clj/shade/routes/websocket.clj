@@ -1,7 +1,8 @@
 (ns shade.routes.websocket
   "Handles communication with the web socket that relayes queries and
   commands to the blind controller running on our home network."
-  (:require [clojure.core.async :as async]
+  (:require [clj-http.client :as client]
+            [clojure.core.async :as async]
             [clojure.edn :as edn]
             [clojure.tools.logging :as log]
             [java-time :as jt]
@@ -427,10 +428,42 @@
                        ch)
               (db/save-event {:name "sunblock-group-exited" :related-id (:id group)}))))))))
 
+(defn send-alarm
+  "Raise an alarm through an IFTTT web hook that will send a push
+  notification because we have not received a shade update in a
+  multiple of our update interval. Records that multiple to suppress
+  redundant alarms."
+  [multiple]
+  (if-let [webhook-key (:ifttt-webhook-key env)]
+    (let [url (str "https://maker.ifttt.com/trigger/shade_trouble/with/key/" webhook-key)]
+      (-> (client/get url)
+        :body))
+    (log/error "Unable to raise alarm about delayed blind updates, no IFTTT_WEBHOOK__KEY environment variable!"))
+  (swap! shade-state assoc :alarm multiple))
+
+(defn alarm-if-no-updates
+  "Checks if too long has passed since we received a blinds update, and
+  if so, raises an alarm to check on the system state."
+  []
+  (try
+    (let [state   @shade-state
+          delayed (quot (- (System/currentTimeMillis) (or (:last-update state) (:started state))) stopped-interval)]
+      (cond (< delayed 3)
+            (swap! shade-state dissoc :alarm)
+
+            (and (>= delayed 120) (< (:alarm state 0) 120))
+            (send-alarm 120)
+
+            (and (>= delayed 3) (< (:alarm state 0) 3))
+            (send-alarm 3)))
+    (catch Throwable t
+      (log/error t "Problem raising alarm about delayed shade updates."))))
+
 (defn run-needed-events
   "Determine which events need running now, and run them."
   []
   (future
+    (alarm-if-no-updates)
     (when-not (throttled? :run-needed-events 20000)
       (let [sun-position (sun/position (jt/zoned-date-time)
                                        (get-in env [:location :latitude]) (get-in env [:location :longitude]))]
@@ -471,6 +504,7 @@
                  (reset! shade-state {}))  ; We have been shut down.
                {:shutdown shutdown-chan
                 :tickle   tickle-chan
+                :started  (System/currentTimeMillis)
                 :shades   {}})
              old-state))))  ; We were already running, do nothing.
 
