@@ -405,12 +405,19 @@
                      clear     ; some sun may be getting through cloud layers,
                      ch)       ; and we have a connection to the blind interface.
             (log/info "Closing blinds for sunblock group" (:name group))
-            (ws/send (str {:action :set-levels
-                           :blinds (mapv (fn [shade]
-                                           {:id    (:controller_id shade)
-                                            :level (:close_min shade)})
-                                         (db/get-sunblock-group-shades {:sunblock_group (:id group)}))})
-                     ch)
+            (let [shades (db/get-sunblock-group-shades {:sunblock_group (:id group)})
+                  state  @shade-state]
+              ;; Save the starting positions of the shades so we can restore them when sunblock ends.
+              (doseq [shade shades]
+                (db/set-shade-sunblock-restore! {:id               (:id shade)
+                                                 :sunblock_restore (get-in state [(:id shade) :level])}))
+              ;; Close all the shades in the sunblock group.
+              (ws/send (str {:action :set-levels
+                             :blinds (mapv (fn [shade]
+                                             {:id    (:controller_id shade)
+                                              :level (:close_min shade)})
+                                           shades)})
+                       ch))
             (db/save-event {:name "sunblock-group-entered" :related-id (:id group)})
             (tickle-state-updater))
 
@@ -423,7 +430,7 @@
               (ws/send (str {:action :set-levels
                              :blinds (mapv (fn [shade]
                                              {:id    (:controller_id shade)
-                                              :level (:open_max shade)})
+                                              :level (or (:sunblock_restore shade) (:open_max shade))})
                                            (db/get-sunblock-group-shades {:sunblock_group (:id group)}))})
                        ch)
               (db/save-event {:name "sunblock-group-exited" :related-id (:id group)}))))))))

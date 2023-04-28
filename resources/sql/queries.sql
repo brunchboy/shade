@@ -322,6 +322,12 @@ UPDATE shades
    SET sunblock_group_id = :sunblock_group
  WHERE id = :id
 
+-- :name set-shade-sunblock-restore! :! :n
+-- :doc updates the starting position of a shade as sun block is about to move it
+UPDATE shades
+   SET sunblock_restore = :sunblock_restore
+ WHERE id = :id
+
 
 -- :name create-sunblock-obstacle! :! :n
 -- :doc creates a new sunblock obstacle record
