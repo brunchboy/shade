@@ -165,9 +165,9 @@
   `t` as seen from the geographic location specified by `latitude` and
   `longitude`.
 
-  Returns a map with keys `:azimuth`, `:elevation`, and `:refraction`.
-  This identifies the apparent position of the sun using the usual
-  horizontal coordinate system, described at
+  Returns a map with keys `:azimuth`, `:elevation`, and
+  `:refraction-correction`. This identifies the apparent position of
+  the sun using the usual horizontal coordinate system, described at
   https://en.wikipedia.org/wiki/Horizontal_coordinate_system with a
   basic adjustment for refraction by the atmosphere. The actual
   position of the sun can be calculated by subtracting the returned

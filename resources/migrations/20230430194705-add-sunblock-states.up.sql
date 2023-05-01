@@ -3,4 +3,4 @@ alter table shades
 
 --;;
 
-COMMENT ON COLUMN shades.sunblock_state IS 'Tracks participation of individual shades in an active sunblock event, can be "delayed", "active", or "ended".';
+COMMENT ON COLUMN shades.sunblock_state IS 'Tracks participation of individual shades in an active sunblock event, can be "delayed", "closed", or "reopened".';

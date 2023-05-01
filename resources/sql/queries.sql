@@ -337,7 +337,7 @@ UPDATE shades
 -- :name set-shade-sunblock-state! :! :n
 -- :doc updates the recorded sunblock state of a shade
 UPDATE shades
-   SET sunblock_restore = :sunblock_restore
+   SET sunblock_state = :state
  WHERE id = :id
 
 -- :name clear-sunblock-group-shade-states! :! :n
