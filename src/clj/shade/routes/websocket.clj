@@ -386,6 +386,20 @@
         (when-let [cloud-percentage (:cloud-percentage weather)]
           (<= cloud-percentage sunblock-cloud-cover-threshold)))))
 
+(defn sunblock-obstacles
+  "Returns the list of obstacles which can prevent sun shining in through
+  a shade that is part of a sunblock group. If any obstacle has an
+  `min_azimuth` value that is greater than its `max_azimuth`, it is
+  split into two separate obstacles, one from `min_azimuth` to
+  `360.0`, and a second from `0.0` to `max_azimuth`."
+  [shade]
+  (mapcat (fn [obstacle]
+            (if (> (:min_azimuth obstacle) (:max_azimuth obstacle))
+              [(assoc obstacle :min_azimuth 0)
+               (assoc obstacle :max_azimuth 360)]
+              [obstacle]))
+          (db/get-sunblock-obstacles-for-shade {:shade (:id shade)})))
+
 (defn sunblock-groups
   "Check to see if the sun has first entered any sunblock groups today,
   and it is warm enough we want to block the sun for reasons of

@@ -316,6 +316,12 @@ DELETE FROM sunblock_groups
 SELECT * from shades
  WHERE sunblock_group_id = :sunblock_group
 
+-- :name get-sunblock-group-shades-in-state :? :*
+-- :doc retrieves the shades which belong to the specified sunblock group
+SELECT * from shades
+ WHERE sunblock_group_id = :sunblock_group
+   AND sunblock_state = :state
+
 -- :name set-shade-sunblock-group! :! :n
 -- :doc updates the sunblock group of an existing shade record
 UPDATE shades
@@ -328,8 +334,25 @@ UPDATE shades
    SET sunblock_restore = :sunblock_restore
  WHERE id = :id
 
+-- :name set-shade-sunblock-state! :! :n
+-- :doc updates the recorded sunblock state of a shade
+UPDATE shades
+   SET sunblock_restore = :sunblock_restore
+ WHERE id = :id
+
+-- :name clear-sunblock-group-shade-states! :! :n
+-- :doc clears the sunblock sates and restore positions of all shades in a sunblock group
+UPDATE shades
+  SET sunblock_restore = null,
+      sunblock_state = null
+ WHERE sunblock_group_id = :sunblock_group
+
 
 -- :name create-sunblock-obstacle! :! :n
 -- :doc creates a new sunblock obstacle record
 INSERT INTO sunblock_obstacles (id, shade_id, name, min_azimuth, max_azimuth, min_elevation, max_elevation)
 VALUES (gen_random_uuid(), :shade_id, :name, :min_azimuth, :max_azimuth, :min_elevation, :max_elevation)
+
+-- :name get-sunblock-obstacles-for-shade :? :*
+SELECT * from sunblock_obstacles
+ WHERE shade_id = :shade
