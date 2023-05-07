@@ -50,7 +50,7 @@ async def login_to_director() -> None:
     director_bearer_token = await account.getDirectorBearerToken(controllers["controllerCommonName"])
     global director
     director = C4Director(os.environ["C4_DIRECTOR_IP"], director_bearer_token["token"])
-    log("Logged in to Control4 director, token expires: {}".format(director_bearer_token["token_expiration"]))
+    log("Logged in to Control4 director, token expires: {}".format(director_bearer_token.get("token_expiration", director_bearer_token.get("validSeconds", "unkonwn"))))
 
 
 asyncio.run(login_to_director())
