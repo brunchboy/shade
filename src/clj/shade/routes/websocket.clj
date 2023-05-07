@@ -114,11 +114,11 @@
 
 (defn on-close
   "Called when the web socket is closed."
-  [{:keys [ws-channel]}]
+  [{:keys [channel]}]
   (log/warn "Web socket closed!")
   (swap! channel-open
          (fn [old-channel]
-           (when (= old-channel ws-channel)
+           (when (= old-channel channel)
              (try
                (.close old-channel)
                (catch Exception e
@@ -129,7 +129,7 @@
 
 (defn on-error
   "Called when there is an error."
-  [{:keys [_channel error]}]
+  [{:keys [error]}]
   (log/error {:what :socket-error
               :where (str "Received web socket error: " error)})
   (swap! channel-open
@@ -147,10 +147,10 @@
   "The web socket handler."
   [_request]
   {:undertow/websocket
-   {:on-open    on-open
-    :on-message on-message
-    :on-close   on-close
-    :on-error   on-error}})
+   {:on-open          on-open
+    :on-message       on-message
+    :on-close-message on-close
+    :on-error         on-error}})
 
 (defn websocket-routes []
   [["/ws" handler]])
