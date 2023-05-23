@@ -464,8 +464,10 @@
   (when (seq unobstructed)
     ;; Save the starting positions of unobstructed shades so we can restore them when sunblock ends.
     (doseq [shade unobstructed]
-      (db/set-shade-sunblock-restore! {:id               (:id shade)
-                                       :sunblock_restore (get-in state [(:id shade) :level])}))
+      (let [level (get-in state [(:id shade) :level])]
+        (log/info "Saving sunblock_restore level of shade" (:name shade) "as" level)
+        (db/set-shade-sunblock-restore! {:id               (:id shade)
+                                         :sunblock_restore level})))
     ;; Close all the unobstructed shades in the sunblock group.
     (ws/send (str {:action :set-levels
                    :blinds (mapv (fn [shade]
