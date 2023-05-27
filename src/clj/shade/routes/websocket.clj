@@ -512,7 +512,8 @@
             (db/save-event {:name "sunblock-group-entered" :related-id (:id group)}))
 
           ;; This group has run today, is it time to open back up?
-          (let [last-closed (db/find-event {:name "sunblock-group-exited" :related-id (:id group)})]
+          (let [last-closed (db/find-event {:name "sunblock-group-exited" :related-id (:id group)})
+                state       @shade-state]
             (if (and (not shining?)  ; Sun is no longer shining through this group.
                        (not (and last-closed (util/same-day? last-closed)))  ; We have not yet closed it.
                        ch)             ; And we have a connection to the blind interface.
@@ -521,7 +522,8 @@
                 (ws/send (str {:action :set-levels
                                :blinds (mapv (fn [shade]
                                                {:id    (:controller_id shade)
-                                                :level (or (:sunblock_restore shade) (:open_max shade))})
+                                                :level (max (or (:sunblock_restore shade) (:open_max shade))
+                                                            (or (get-in state [:shades (:id shade) :level]) 0))})
                                              (db/get-sunblock-group-shades-in-state {:sunblock_group (:id group)
                                                                                      :state          "closed"}))})
                          ch)
