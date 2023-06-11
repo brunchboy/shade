@@ -343,9 +343,17 @@ UPDATE shades
 -- :name clear-sunblock-group-shade-states! :! :n
 -- :doc clears the sunblock sates and restore positions of all shades in a sunblock group
 UPDATE shades
-  SET sunblock_restore = null,
-      sunblock_state = null
+   SET sunblock_restore = null,
+       sunblock_state = null
  WHERE sunblock_group_id = :sunblock_group
+
+-- :name remove-from-active-sunblock :! :n
+-- :doc if any shade mentioned in the ID list is currently being controlled by a sunblock, clears that state
+UPDATE shades
+   SET sunblock_restore = null,
+       sunblock_state = 'removed'
+ WHERE sunblock_state is not null
+   AND id in (:v*:ids)
 
 
 -- :name create-sunblock-obstacle! :! :n

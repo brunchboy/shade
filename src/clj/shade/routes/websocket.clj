@@ -162,15 +162,17 @@
   will be used."
   [macro-id user-id room-id]
   (let [entries (db/get-macro-entries {:macro macro-id
-                                       :user  user-id})]
+                                       :user  user-id})
+        in-room (cond->> entries
+                  room-id
+                  (filter #(= (:room %) room-id)))]
     (when-let [ch @channel-open]
+      (db/remove-from-active-sunblock {:ids (mapv :shade in-room)})
       (ws/send (str {:action :set-levels
                      :blinds (mapv (fn [entry]
                                      {:id    (:controller_id entry)
                                       :level (util/narrow-macro-level entry)})
-                                   (cond->> entries
-                                     room-id
-                                     (filter #(= (:room %) room-id))))})
+                                   in-room)})
                ch)
       (doseq [entry entries]
         (swap! shade-state update-in [:shades (:shade entry)]
@@ -186,6 +188,7 @@
     (when-not (empty? preview)
       (let [ids    (map (fn [k] (java.util.UUID/fromString (name k))) (keys preview))
             shades (db/get-shades {:ids ids})]
+        (db/remove-from-active-sunblock {:ids ids})
         (ws/send (str {:action :set-levels
                        :blinds (mapv (fn [shade]
                                        ;; This painful bit is because JS sometimes sends us the values as
