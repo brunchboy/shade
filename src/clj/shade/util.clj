@@ -84,6 +84,14 @@
    :top_right_y (interpolate top_right_y bottom_right_y top-level)
    :bottom_right_y (interpolate top_right_y bottom_right_y bottom-level)})
 
+(defn center
+  "Given a shade boundary map produced by
+  `shade.routes.websocket.shades-visible`, returns the center point
+  of the boundaries."
+  [{:keys [top_left_x top_left_y top_right_x top_right_y bottom_left_x bottom_left_y bottom_right_x bottom_right_y]}]
+  {:x (quot (+ top_left_x top_right_x bottom_left_x bottom_right_x) 4)
+   :y (quot (+ top_left_y top_right_y bottom_left_y bottom_right_y) 4)})
+
 (defn regions-to-draw
   "Given a shade boundary map produced by
   `shade.routes.websocket.shades-visible`, returns a list of image
@@ -161,6 +169,19 @@
               (when (:moving? shade)
                 (merge {:moving kind}
                        (clip boundaries 100 (:target-level shade)))))
+            shades)
+       (filter identity)))
+
+(defn sunblock-indicators-to-draw
+  "Given a shade boundary map produced by
+  `shade.routes.websocket.shades-visible`, returns a list of
+  sunblock-indicator images that need to be drawn to show the
+  shades are participating in an active sunblock event."
+  [{:keys [shades] :as boundaries}]
+  (->> (map (fn [[_kind shade]]
+              (when (#{"closed" "delayed"} (:sunblock_state shade))
+                (merge {:sunblock (:sunblock_state shade)}
+                       (center boundaries))))
             shades)
        (filter identity)))
 

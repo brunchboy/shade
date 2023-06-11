@@ -7,30 +7,35 @@
   var drawing = false;
 
   function drawShadeState(entry, canvas, ctx) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(entry.top_left_x, entry.top_left_y);
-    ctx.lineTo(entry.top_right_x, entry.top_right_y);
-    ctx.lineTo(entry.bottom_right_x, entry.bottom_right_y);
-    ctx.lineTo(entry.bottom_left_x, entry.bottom_left_y);
-    ctx.closePath();
-    if ("image" in entry) {
-      ctx.clip();
-      ctx.drawImage(document.getElementById(entry.image), 0, 0, canvas.width, canvas.height);
-    } else {
-      if (entry.moving == "blackout") {
-        ctx.fillStyle = "rgba(0, 0, 255, 30%)";
-        ctx.strokeStyle = "rgba(0, 0, 255, 80%)";
-      } else {
-        ctx.fillStyle = "rgba(240, 255, 10, 25%)";
-        ctx.strokeStyle = "rgba(240, 255, 10, 80%)";
-      }
-      ctx.fill();
-      ctx.lineWidth = 8;
-      ctx.setLineDash([8, 8]);
-      ctx.stroke();
+    if ("sunblock" in entry) {
+      ctx.drawImage(document.getElementById('sun'), entry.x - 50, entry.y - 49, 100, 98);
     }
-    ctx.restore();
+    else {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(entry.top_left_x, entry.top_left_y);
+      ctx.lineTo(entry.top_right_x, entry.top_right_y);
+      ctx.lineTo(entry.bottom_right_x, entry.bottom_right_y);
+      ctx.lineTo(entry.bottom_left_x, entry.bottom_left_y);
+      ctx.closePath();
+      if ("image" in entry) {
+        ctx.clip();
+        ctx.drawImage(document.getElementById(entry.image), 0, 0, canvas.width, canvas.height);
+      } else if ("moving" in entry) {
+        if (entry.moving == "blackout") {
+          ctx.fillStyle = "rgba(0, 0, 255, 30%)";
+          ctx.strokeStyle = "rgba(0, 0, 255, 80%)";
+        } else {
+          ctx.fillStyle = "rgba(240, 255, 10, 25%)";
+          ctx.strokeStyle = "rgba(240, 255, 10, 80%)";
+        }
+        ctx.fill();
+        ctx.lineWidth = 8;
+        ctx.setLineDash([8, 8]);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
   }
 
   function draw() {
@@ -110,6 +115,7 @@
   <img id="open" src="{{cdn}}/rooms/{{room.id}}/open.jpeg">
   <img id="blackout" src="{{cdn}}/rooms/{{room.id}}/blackout.jpeg">
   <img id="privacy" src="{{cdn}}/rooms/{{room.id}}/privacy.jpeg">
+  <img id="sun" src="{{cdn}}/Sun.png">
 </div>
 
 <figure class="image is-fullwidth is-4by3">

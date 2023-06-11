@@ -268,7 +268,7 @@
   target positions."
   [bounds]
   (reduce (fn [acc v]
-            (let [shade-info (select-keys v [:kind :close_min :open_max :controller_id :shade_id])
+            (let [shade-info (select-keys v [:kind :close_min :open_max :controller_id :shade_id :sunblock_state])
                   base       (or (get acc (:id v))
                                  (assoc (apply dissoc v :id (keys shade-info))
                                         :shades {}))]
@@ -283,7 +283,8 @@
   specified user has access to the specified room. After the last
   image drawing instruction is emitted, we add instructions to draw
   translucent indicators of the positions to which any moving shades
-  are moving."
+  are moving. Finally, we add instructions to draw sunblock icons in
+  the center of any shades which are participating in sun blocking."
   [room-id user-id]
   (let [valid-rooms (->> (db/list-rooms-for-user {:user user-id}))
         room        (first (filter #(= (:id %) room-id) valid-rooms) )]
@@ -294,7 +295,8 @@
             base           (util/base-image grouped-shades room)]
         (concat [base]
                 (mapcat (partial util/regions-to-draw (:image base)) grouped-shades)
-                (mapcat util/movement-indicators-to-draw grouped-shades))))))
+                (mapcat util/movement-indicators-to-draw grouped-shades)
+                (mapcat util/sunblock-indicators-to-draw grouped-shades))))))
 
 
 (def moving-interval
