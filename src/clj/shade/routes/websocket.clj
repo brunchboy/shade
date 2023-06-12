@@ -512,8 +512,13 @@
               (close-unobstructed-shade-set unobstructed state ch)
               ;; Record the shades that have been delayed in closing by obstructions, and those that are now closed.
               (doseq [shade shades]
-                (db/set-shade-sunblock-state! {:id    (:id shade)
-                                               :state (if (:obstructions shade) "delayed" "closed")})))
+                (let [current-level   (or (get-in state [:shades (:id shade) :level]) 0)
+                      already-closed? (= current-level (:close_min shade))]
+                  (db/set-shade-sunblock-state! {:id    (:id shade)
+                                                 :state (cond
+                                                          already-closed?       "independent"
+                                                          (:obstructions shade) "delayed"
+                                                          :else                 "closed")}))))
             (db/save-event {:name "sunblock-group-entered" :related-id (:id group)}))
 
           ;; This group has run today, is it time to open back up?
