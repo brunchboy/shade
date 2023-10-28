@@ -88,24 +88,35 @@
     (case action
       :positions
       (future
-        (log/info "Received updated blind positions.")
-        (doseq [[k v] (gather-director-vars (:positions message))]
-          (when-let [shade (db/get-shade-by-controller-id {:id k})]
-            (swap! shade-state update-in [:shades (:id shade)]
-                   merge {:moving?       (zero? (get v "Stopped"))
-                          :level         (get v "Level")
-                          :target-level  (get v "Target Level")})))
-        (swap! shade-state assoc :last-update (System/currentTimeMillis)))
+        (try
+          (log/info "Received updated blind positions.")
+          (doseq [[k v] (gather-director-vars (:positions message))]
+            (try
+              (when-let [shade (db/get-shade-by-controller-id {:id k})]
+                (if (number? (get v "Level"))
+                  (swap! shade-state update-in [:shades (:id shade)]
+                         merge {:moving?       (zero? (get v "Stopped"))
+                                :level         (get v "Level")
+                                :target-level  (get v "Target Level")})
+                  (log/error "Received malformed variables for blind" (:name shade) "so ignoring positon update:" v)))
+              (catch Throwable t
+                (log/error t "Problem processing blind position update; controller ID:" k "vars:" v))))
+          (swap! shade-state assoc :last-update (System/currentTimeMillis))
+          (catch Throwable t
+            (log/error t "Problem processing blind position update."))))
 
       :batteries
       (future
-        (log/info "Received updated battery levels.")
-        (let [vars (gather-director-vars (:batteries message))]
-          (doseq [shade (db/list-shades)]
-                (if-let [level (get-in vars [(:parent_id shade) "Battery Level"])]
-                  (swap! shade-state assoc-in [:shades (:id shade) :battery-level] level)
-                  (log/error "Could not find battery level for shade with parent ID" (:parent_id shade))))
-              (swap! shade-state assoc :last-battery-update (System/currentTimeMillis))))
+        (try
+          (log/info "Received updated battery levels.")
+          (let [vars (gather-director-vars (:batteries message))]
+            (doseq [shade (db/list-shades)]
+              (if-let [level (get-in vars [(:parent_id shade) "Battery Level"])]
+                (swap! shade-state assoc-in [:shades (:id shade) :battery-level] level)
+                (log/error "Could not find battery level for shade with parent ID" (:parent_id shade))))
+            (swap! shade-state assoc :last-battery-update (System/currentTimeMillis)))
+          (catch Throwable t
+            (log/error t "Problem processing battery level update."))))
 
       :set-levels
       (log/info "Received acknowledgement of set-levels command.")

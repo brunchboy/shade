@@ -25,7 +25,7 @@
                  [metosin/ring-http-response "0.9.3"]
                  [mount "0.1.17"]
                  [nrepl "1.0.0"]
-                 [cider/cider-nrepl "0.30.0"]
+                 [cider/cider-nrepl "0.41.0"]
                  [org.clojure/clojure "1.11.1"]
                  [org.clojure/tools.cli "1.0.214"]
                  [org.clojure/core.async "1.6.673"]
