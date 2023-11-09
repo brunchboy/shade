@@ -30,12 +30,14 @@
        (filter :name)))  ; Remove the ones we have no name for.
 
 (defn lowest-battery-shade
-  "Finds the shade with the lowest remaining battery power."
+  "Finds the shade with the lowest remaining battery power. Returns `nil`
+  if we don't yet have battery level information for any shade."
   []
   (let [shades (map (fn [[k v]] (assoc v :id k)) (:shades @ws/shade-state))
-        result (apply min-key :battery-level shades)
-        result (merge result (select-keys (db/get-shade result) [:name :room]))]
-    (assoc result :room (:name (db/get-room {:id (:room result)})))))
+        known  (filter :battery-level shades)
+        result (when (seq known) (apply min-key :battery-level known))
+        result (when result (merge result (select-keys (db/get-shade result) [:name :room])))]
+    (when result (assoc result :room (:name (db/get-room {:id (:room result)}))))))
 
 
 (defn status-page [request]

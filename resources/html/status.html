@@ -24,10 +24,12 @@
     <span class="tag is-success">Yes</span><br/>
     Last Blind Position Update: {{blinds-update}}<br/>
     Last Blind Battery Update: {{battery-update}}<br/>
+    {% if lowest-battery %}
     <span {% if lowest-battery.battery-level < 10.0 %} class="has-text-danger-dark has-text-weight-bold" {% endif %}>
       Lowest Battery: {{lowest-battery.name}}, in {{lowest-battery.room}}:
       {{lowest-battery.battery-level|double-format}}%
     </span>
+    {% endif %}
     {% else %}
     <span class="tag is-danger">No</span>
     {% endif %}</p>
