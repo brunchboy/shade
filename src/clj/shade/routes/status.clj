@@ -29,6 +29,14 @@
                   (update :happened util/format-timestamp-relative))))
        (filter :name)))  ; Remove the ones we have no name for.
 
+(defn lowest-battery-shade
+  "Finds the shade with the lowest remaining battery power."
+  []
+  (let [shades (map (fn [[k v]] (assoc v :id k)) (:shades @ws/shade-state))
+        result (apply min-key :battery-level shades)
+        result (merge result (select-keys (db/get-shade result) [:name :room]))]
+    (assoc result :room (:name (db/get-room {:id (:room result)})))))
+
 
 (defn status-page [request]
   (let [weather   (:weather @weather/state)
@@ -52,6 +60,7 @@
                            :connected?        (some? @ws/channel-open)
                            :blinds-update     (util/format-timestamp-relative (:last-update @ws/shade-state))
                            :battery-update    (util/format-timestamp-relative (:last-battery-update @ws/shade-state))
+                           :lowest-battery    (lowest-battery-shade)
                            :weather-update    (util/localize-timestamp (:time weather))
                            :weather           weather
                            :high              high
