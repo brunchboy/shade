@@ -359,6 +359,18 @@
       (catch Throwable t
         (log/error t "Problem requesting blind information.")))))
 
+(defn force-battery-update
+  "Cause a battery update to occur immediately, useful when replacing
+  batteries to verify the results."
+  []
+  (future
+    (try
+      (when-let [ch @channel-open]
+        (log/info "Requesting extra battery level update by instruction.")
+        (ws/send (str {:action :batteries}) ch))
+      (catch Throwable t
+        (log/error t "Problem requesting battery level update.")))))
+
 (defn sunrise-protect
   "If we have just reached astronomical dawn, close the blackout
   curtains in all rooms marked for sunrise protection."

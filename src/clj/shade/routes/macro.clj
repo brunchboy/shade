@@ -38,7 +38,7 @@
       (layout/error-page {:status 401 :title "401 - Unauthorized"}))))
 
 (defn macro-page [{:keys [path-params session] :as request}]
-  (let [user-id  (get-in session [ :identity :id])
+  (let [user-id  (get-in session [:identity :id])
         macro-id (when-let [id (:id path-params)] (UUID/fromString id))
         rooms    (db/list-rooms-for-user {:user user-id})
         macro    (when macro-id (db/get-macro {:id macro-id}))

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script type="text/javascript">
+
+  function refreshBatteryLevels() {
+    const req = new XMLHttpRequest();
+    req.open("post", "/admin/batteries");
+    req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    req.setRequestHeader("X-CSRF-Token", "{{csrf-token}}");
+    req.send("");
+    setTimeout(function(){
+      window.location.reload();
+    }, 2000);
+  }
+</script>
+
+{% if error %}
+<div class="notification is-danger">{{error}}</div>
+{% endif %}
+
+<h1 class="title">View Battery Levels</h1>
+<h2 class="subtitle">Lists shades sorted by remaining battery power.</h2>
+
+<table class="table">
+  <thead>
+    <th>Shade</th>
+    <th>Room</th>
+    <th class="has-tect-right">Battery</th>
+    <th>Cells</th>
+  </thead>
+  <tbody>
+    {% for shade in shades %}
+    <tr>
+      <td class="vertical-middle">{{shade.name}}</td>
+      <td class="vertical-middle">{{shade.room_name}}</td>
+      <td class="vertical-middle has-text-right">
+        {% if shade.battery-level >= 0 %}{{shade.battery-level|double-format}}%{% endif %}
+      </td>
+      <td class="vertical-middle">{{shade.cell_count}}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="field">
+  <div class="control">
+    {% if user.admin %}
+    <input class="button is-primary mr-6" type="submit" value="Refresh Battery Levels"
+           onclick="refreshBatteryLevels()"/>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

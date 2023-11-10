@@ -62,7 +62,6 @@
   <table class="table">
   <thead>
     <th>Shade</th>
-    <th>Battery</th>
     <th>Room</th>
     <th></th>
     <th>Position</th>
@@ -73,9 +72,6 @@
     {% for shade in shades %}
     <tr>
       <td class="vertical-middle">{{shade.name}}</td>
-      <td class="vertical-middle">
-        {% if shade.battery-level >= 0 %}{{shade.battery-level}}%{% endif %}
-      </td>
       <td class="vertical-middle">{{shade.room_name}}</td>
       <td class="vertical-middle mr-0 pr-0">Closed</td>
       <td class="vertical-middle mx-0 px-1">

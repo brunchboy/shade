@@ -5,6 +5,7 @@
    [shade.layout :as layout]
    [shade.db.core :as db]
    [shade.routes.admin :as admin]
+   [shade.routes.batteries :as batteries]
    [shade.routes.login :as login]
    [shade.routes.macro :as macro]
    [shade.routes.profile :as profile]
@@ -95,16 +96,18 @@
    ["/admin/delete-macro/:id" {:get  macro/delete-macro-page
                                :post macro/macro-delete}]
    ["/admin/delete-user/:id" {:get  user/delete-user-page
-                               :post user/user-delete}]
+                              :post user/user-delete}]
    ["/admin/macros" {:get macro/list-macros-page}]
+   ["/admin/batteries" {:get  batteries/battery-page
+                        :post batteries/refresh-battery-state}]
    ["/admin/set-room-availability" {:post user/set-room-availability}]
    ["/admin/set-shade-sunblock-group" {:post sunblock/set-shade-sunblock-group}]
    ["/admin/sunblock-groups" {:get sunblock/list-groups-page}]
    ["/admin/sunblock-shades" {:get sunblock/assign-shades-page}]
    ["/admin/user/" {:get  user/user-page
-                     :post user/user-save}]
+                    :post user/user-save}]
    ["/admin/user/:id" {:get  user/user-page
-                        :post user/user-save}]
+                       :post user/user-save}]
    ["/admin/users" {:get user/list-users-page}]
    ["/admin/user-rooms/:id" {:get user/user-rooms-page}]
    ["/admin/user-macros/:id" {:get user/user-macros-page}]
@@ -113,9 +116,9 @@
               :post login/login-authenticate}]
    ["/logout" {:get login/logout}]
    ["/macro/" {:get  macro/macro-page
-                     :post macro/macro-save}]
+               :post macro/macro-save}]
    ["/macro/:id" {:get  macro/macro-page
-                        :post macro/macro-save}]
+                  :post macro/macro-save}]
    ["/macro-states" {:get macro/macro-states}]
    ["/profile" {:get  profile/profile-page
                 :post profile/profile-update}]

@@ -9,4 +9,5 @@
                                                {:user            (db/get-user {:id user-id})
                                                 :macros          (db/list-macros)
                                                 :users           (db/list-users)
-                                                :sunblock-groups (db/list-sunblock-groups)}))))
+                                                :sunblock-groups (db/list-sunblock-groups)
+                                                :shades          (db/list-shades)}))))
