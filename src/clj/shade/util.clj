@@ -244,17 +244,20 @@
 
 (defn format-timestamp-relative
   "Formats a timestamp as a string, describing it relative to today if
-  it falls within a week."
-  [timestamp]
-  (if-let [localized (localize-timestamp timestamp)]
-    (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
-          date           (jt/truncate-to (jt/local-date-time localized) :days)
-          today          (jt/truncate-to (jt/local-date-time (jt/instant) local-timezone) :days)
-          days           (jt/as (jt/duration date today) :days)]
-      (str (case days
-             0           "Today"
-             1           "Yesterday"
-             (2 3 4 5 6) (jt/format "EEEE" date)
-             (jt/format "YYYY-MM-dd" date))
-           (jt/format " HH:mm:ss" localized)))
-    "Never"))
+  it falls within a week. If `omit-time` is supplied with a truthy
+  value, then only the date is formatted."
+  ([timestamp]
+   (format-timestamp-relative timestamp false))
+  ([timestamp omit-time]
+   (if-let [localized (localize-timestamp timestamp)]
+     (let [local-timezone (jt/zone-id (get-in env [:location :timezone]))
+           date           (jt/truncate-to (jt/local-date-time localized) :days)
+           today          (jt/truncate-to (jt/local-date-time (jt/instant) local-timezone) :days)
+           days           (jt/as (jt/duration date today) :days)]
+       (str (case days
+              0           "Today"
+              1           "Yesterday"
+              (2 3 4 5 6) (jt/format "EEEE" date)
+              (jt/format "YYYY-MM-dd" date))
+            (when-not omit-time (jt/format " HH:mm:ss" localized))))
+     "Never")))

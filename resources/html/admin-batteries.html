@@ -28,6 +28,7 @@
     <th>Room</th>
     <th class="has-tect-right">Battery</th>
     <th>Cells</th>
+    <th>Installed</th>
   </thead>
   <tbody>
     {% for shade in shades %}
@@ -38,6 +39,7 @@
         {% if shade.battery-level >= 0 %}{{shade.battery-level|double-format}}%{% endif %}
       </td>
       <td class="vertical-middle">{{shade.cell_count}}</td>
+      <td class="vertical-middle">{{shade.cells_installed}}</td>
     </tr>
     {% endfor %}
   </tbody>

@@ -3,6 +3,7 @@
   (:require [shade.db.core :as db]
             [shade.layout :as layout]
             [shade.routes.websocket :as ws]
+            [shade.util :as util]
             [ring.util.json-response :refer [json-response]]))
 
 (defn refresh-battery-state [{:keys [session]}]
@@ -20,4 +21,6 @@
                    (merge (select-keys request [:active? :admin?])
                             {:user    (db/get-user {:id user-id})
                              :rooms   rooms
-                             :shades  (sort-by :battery-level shades)}))))
+                             :shades  (->> shades
+                                           (map #(update % :cells_installed util/format-timestamp-relative true))
+                                           (sort-by :battery-level))}))))
