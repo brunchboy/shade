@@ -6,7 +6,7 @@
    [shade.config :refer [env]]
    [shade.db.core :as db]
    [shade.layout :as layout]
-   [shade.routes.websocket :as ws]
+   [shade.routes.websocket-control4 :as ws]
    [shade.util :as util])
   (:import
    (java.util UUID)))

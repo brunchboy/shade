@@ -1,15 +1,17 @@
 (ns shade.routes.macro
   "Supports the creation, editing, running, and querying of shade
   macros."
-  (:require [clojure.string :as str]
-            [conman.core :as conman]
-            [shade.db.core :as db]
-            [shade.layout :as layout]
-            [shade.routes.websocket :as ws]
-            [ring.util.http-response :as response]
-            [ring.util.json-response :refer [json-response]]
-            [ring.util.response :refer [redirect]])
-  (:import  (java.util UUID)))
+  (:require
+   [clojure.string :as str]
+   [conman.core :as conman]
+   [ring.util.http-response :as response]
+   [ring.util.json-response :refer [json-response]]
+   [ring.util.response :refer [redirect]]
+   [shade.db.core :as db]
+   [shade.layout :as layout]
+   [shade.routes.websocket-control4 :as ws])
+  (:import
+   (java.util UUID)))
 
 (defn macro-states [request]
   (let [user-id   (get-in request [:session :identity :id])

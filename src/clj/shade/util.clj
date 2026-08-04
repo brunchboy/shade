@@ -1,7 +1,10 @@
 (ns shade.util
   "Utility functions."
-  (:require [clojure.set :as set]
+  (:require [clj-http.client :as client]
+            [clojure.set :as set]
+            [clojure.tools.logging :as log]
             [java-time :as jt]
+            [ring.util.codec :as codec]
             [shade.config :refer [env]])
   (:import (java.awt Polygon)))
 
@@ -261,3 +264,14 @@
               (jt/format "YYYY-MM-dd" date))
             (when-not omit-time (jt/format " HH:mm:ss" localized))))
      "Never")))
+
+(defn send-ifttt-notification
+  "Sends a push notification about shade trouble through IFTTT, with the
+  specified message details."
+  [message]
+  (if-let [webhook-key (:ifttt-webhook-key env)]
+     (let [url  (str "https://maker.ifttt.com/trigger/shade_trouble/with/key/" webhook-key)
+           args (when message (str "?value1=" (codec/url-encode message)))]
+       (-> (client/get (str url args))
+           :body))
+     (log/error "Unable to raise alarm about" message "(No IFTTT_WEBHOOK__KEY environment variable!)")))

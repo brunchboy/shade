@@ -5,11 +5,10 @@
    [shade.config :refer [env]]
    [shade.db.core :as db]
    [shade.layout :as layout]
-   [shade.routes.websocket :as ws]
+   [shade.routes.websocket-control4 :as ws]
    [shade.sun :as sun]
    [shade.util :as util]
    [shade.weather :as weather]))
-
 
 (defn- format-events
   "Gather information about events which have been recorded for display

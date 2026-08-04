@@ -1,10 +1,11 @@
 (ns shade.routes.batteries
   "Supports the viewing of the battery state of the shades."
-  (:require [shade.db.core :as db]
-            [shade.layout :as layout]
-            [shade.routes.websocket :as ws]
-            [shade.util :as util]
-            [ring.util.json-response :refer [json-response]]))
+  (:require
+   [ring.util.json-response :refer [json-response]]
+   [shade.db.core :as db]
+   [shade.layout :as layout]
+   [shade.routes.websocket-control4 :as ws]
+   [shade.util :as util]))
 
 (defn refresh-battery-state [{:keys [session]}]
   (let [user (:identity session)]

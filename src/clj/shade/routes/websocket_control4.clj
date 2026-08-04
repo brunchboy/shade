@@ -1,14 +1,13 @@
-(ns shade.routes.websocket
+(ns shade.routes.websocket-control4
   "Handles communication with the web socket that relayes queries and
-  commands to the blind controller running on our home network."
-  (:require [clj-http.client :as client]
-            [clojure.core.async :as async]
+  commands to the Control4 blind controller running on our home
+  network."
+  (:require [clojure.core.async :as async]
             [clojure.edn :as edn]
             [clojure.tools.logging :as log]
             [java-time :as jt]
             [mount.core :refer [defstate]]
             [ring.adapter.undertow.websocket :as ws]
-            [ring.util.codec :as codec]
             [shade.config :refer [env]]
             [shade.db.core :as db]
             [shade.sun :as sun]
@@ -81,17 +80,6 @@
           {}
           var-list))
 
-(defn send-ifttt-notification
-  "Sends a push notification about shade trouble through IFTTT, with the
-  specified message details."
-  [message]
-  (if-let [webhook-key (:ifttt-webhook-key env)]
-     (let [url  (str "https://maker.ifttt.com/trigger/shade_trouble/with/key/" webhook-key)
-           args (when message (str "?value1=" (codec/url-encode message)))]
-       (-> (client/get (str url args))
-           :body))
-     (log/error "Unable to raise alarm about" message "(No IFTTT_WEBHOOK__KEY environment variable!)")))
-
 (defn on-message
   "Called when a message is received from the web socket."
   [{:keys [data]}]
@@ -130,7 +118,7 @@
           (let [levels    (->> (:shades @shade-state) vals (map :battery-level) (filter identity))
                 min-level (apply min (conj levels 100.0))]  ; Don't crash if no levels yet known.
             (when (< min-level 5.0)
-              (send-ifttt-notification (format "Lowest battery level: %.1f%%" (double min-level)))))
+              (util/send-ifttt-notification (format "Lowest battery level: %.1f%%" (double min-level)))))
           (catch Throwable t
             (log/error t "Problem processing battery level update."))))
 
@@ -624,7 +612,7 @@
   multiple of our update interval. Records that multiple to suppress
   redundant alarms."
   [multiple]
-  (send-ifttt-notification  (str "No response from daemon in " multiple " attempts!"))
+  (util/send-ifttt-notification  (str "No response from daemon in " multiple " attempts!"))
   (swap! shade-state assoc :alarm multiple))
 
 (defn alarm-if-no-updates

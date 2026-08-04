@@ -2,8 +2,12 @@
   "Supports the home page, a few tiny pages and actions, and defines the
   main routing for the application."
   (:require
-   [shade.layout :as layout]
+   [clojure.set :as set]
+   [clojure.string :as str]
+   [ring.util.json-response :refer [json-response]]
    [shade.db.core :as db]
+   [shade.layout :as layout]
+   [shade.middleware :as middleware]
    [shade.routes.admin :as admin]
    [shade.routes.batteries :as batteries]
    [shade.routes.login :as login]
@@ -13,11 +17,7 @@
    [shade.routes.status :as status]
    [shade.routes.sunblock :as sunblock]
    [shade.routes.user :as user]
-   [shade.routes.websocket :as ws]
-   [clojure.set :as set]
-   [clojure.string :as str]
-   [shade.middleware :as middleware]
-   [ring.util.json-response :refer [json-response]]))
+   [shade.routes.websocket-control4 :as ws]))
 
 (defn build-macro-rooms
   "Creates a list describing the rooms which are affected by macros
