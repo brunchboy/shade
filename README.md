@@ -5,6 +5,21 @@
 A web application for allowing local and remote control of automated
 blinds.
 
+## Branch Information
+
+This branch was made to keep track of the implementation that worked
+with Control4's proprietary Director (with the help of Android app
+credentials). Because that manufacturer decided to sunset support for
+my hardware, I got sick of working around their limitations, and
+instead of paying them for the replacement (and figuring out if the
+new OS would continue to work with my code), I decided to buy an
+open-source Home Assistant box and its Zigbee interface instead. The
+main branch has been modified to work with that, better, approach. But
+I am keeping this around in case anyone needs to work with Control4 in
+the future.
+
+## Overview
+
 Uses a set of four photographs of each room, with the blackout and
 screen shades all open or closed, to create a composite image showing
 the current state of the room, and allowing users to tap on the photo
