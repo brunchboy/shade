@@ -111,11 +111,12 @@
           (log/info "Received updated battery levels.")
           (let [vars (gather-director-vars (:batteries message))]
             (doseq [shade (db/list-shades)]
-              (if-let [level (get-in vars [(:parent_id shade) "Battery Level"])]
-                (swap! shade-state assoc-in [:shades (:id shade) :battery-level] level)
-                (log/error "Could not find battery level for shade with parent ID" (:parent_id shade))))
+              (when (nil? (:home_assistant_entity shade))  ; Ignore ones controlled by Home Assistant
+                (if-let [level (get-in vars [(:parent_id shade) "Battery Level"])]
+                  (swap! shade-state assoc-in [:shades (:id shade) :battery-level] level)
+                  (log/error "Could not find battery level for shade with parent ID" (:parent_id shade)))))
             (swap! shade-state assoc :last-battery-update (System/currentTimeMillis)))
-          (let [levels    (->> (:shades @shade-state) vals (map :battery-level) (filter identity))
+          (let [levels    (->> (:shades @shade-state) vals (map :battery-level) (filter identity) (remove neg?))
                 min-level (apply min (conj levels 100.0))]  ; Don't crash if no levels yet known.
             (when (< min-level 5.0)
               (util/send-ifttt-notification (format "Lowest battery level: %.1f%%" (double min-level)))))
@@ -176,8 +177,9 @@
   If `room-id` is not `nil`, only entries for blinds in that room
   will be used."
   [macro-id user-id room-id]
-  (let [entries (db/get-macro-entries {:macro macro-id
-                                       :user  user-id})
+  (let [entries (->> (db/get-macro-entries {:macro macro-id
+                                            :user  user-id})
+                     (remove :home_assistant_entity))
         in-room (cond->> entries
                   room-id
                   (filter #(= (:room %) room-id)))]
@@ -260,58 +262,10 @@
                      :battery-level battery-level})))
          (db/list-shades))))
 
-(defn- include-level
-  "Takes a shade bounds entry being reported for a room, and inserts the
-  current level of that shade into it, expanding it back to the
-  logical range where 0 is fully closed and 100 is fully open. It also
-  includes a flag that indicates whether the shade is moving, and the
-  target level it is moving to."
-  [shade-info]
-  (let [state    (get-in @shade-state [:shades (:shade_id shade-info)])
-        leveled  (assoc shade-info :level (:level state (:close_min shade-info)))
-        targeted (assoc shade-info :level (:target-level state (:close_min shade-info)))]
-    (-> shade-info
-        (assoc :level (util/expand-shade-level leveled)
-               :target-level (util/expand-shade-level targeted)
-               :moving? (:moving? state))
-        (dissoc :close_min :open_max))))
-
-(defn- group-shades-and-add-levels
-  "Transforms the shade photo boundaries rows so that shades which share
-  the same boundaries are grouped into a single entry. In the process
-  adds information about the shades' current positions, motion, and
-  target positions."
-  [bounds]
-  (reduce (fn [acc v]
-            (let [shade-info (select-keys v [:kind :close_min :open_max :controller_id :shade_id :sunblock_state])
-                  base       (or (get acc (:id v))
-                                 (assoc (apply dissoc v :id (keys shade-info))
-                                        :shades {}))]
-              (assoc acc (:id v) (update base :shades assoc (:kind shade-info)
-                                         (dissoc (include-level shade-info) :kind)))))
-          {}
-          bounds))
-
-(defn shades-visible
-  "Sends a list of image region updates required to make a room photo
-  accurately reflect the current state of the shades, as long as the
-  specified user has access to the specified room. After the last
-  image drawing instruction is emitted, we add instructions to draw
-  translucent indicators of the positions to which any moving shades
-  are moving. Finally, we add instructions to draw sunblock icons in
-  the center of any shades which are participating in sun blocking."
-  [room-id user-id]
-  (let [valid-rooms (->> (db/list-rooms-for-user {:user user-id}))
-        room        (first (filter #(= (:id %) room-id) valid-rooms) )]
-    (when room
-      (let [grouped-shades (->> (db/get-room-photo-boundaries {:room room-id})
-                                group-shades-and-add-levels
-                                vals)
-            base           (util/base-image grouped-shades room)]
-        (concat [base]
-                (mapcat (partial util/regions-to-draw (:image base)) grouped-shades)
-                (mapcat util/movement-indicators-to-draw grouped-shades)
-                (mapcat util/sunblock-indicators-to-draw grouped-shades))))))
+(defn current-shade-states
+  "Return the current information we have about shades we manage."
+  []
+  (:shades @shade-state))
 
 
 (def moving-interval
@@ -675,7 +629,7 @@
                        (run-needed-events)
                        (recur (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true}))))
                    (catch Throwable t
-                     (log/error t "Problem in state-updater go loop")))
+                     (log/error t "Problem in Control4 state-updater go loop")))
                  (reset! shade-state {}))  ; We have been shut down.
                {:shutdown shutdown-chan
                 :tickle   tickle-chan

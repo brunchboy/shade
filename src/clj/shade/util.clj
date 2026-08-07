@@ -73,7 +73,7 @@
 
 (defn clip
   "Given a shade boundary map produced by
-  `shade.routes.websocket.shades-visible`, and a top and bottom level
+  `shade.routes.room/shades-visible`, and a top and bottom level
   expressed as percentages, returns the boundaries clipped to include
   the specified section only."
   [{:keys [top_left_x top_left_y top_right_x top_right_y bottom_left_x bottom_left_y bottom_right_x bottom_right_y]}
@@ -89,7 +89,7 @@
 
 (defn center
   "Given a shade boundary map produced by
-  `shade.routes.websocket.shades-visible`, returns the center point
+  `shade.routes.room/shades-visible`, returns the center point
   of the boundaries."
   [{:keys [top_left_x top_left_y top_right_x top_right_y bottom_left_x bottom_left_y bottom_right_x bottom_right_y]}]
   {:x (quot (+ top_left_x top_right_x bottom_left_x bottom_right_x) 4)
@@ -97,7 +97,7 @@
 
 (defn regions-to-draw
   "Given a shade boundary map produced by
-  `shade.routes.websocket.shades-visible`, returns a list of image
+  `shade.routes.room/shades-visible`, returns a list of image
   types and clipping regions that need to be drawn to show the
   cooresponding current shade state for that pair of shades.
   `base-name` is the name of the base image being drawn, which lets us
@@ -163,7 +163,7 @@
 
 (defn movement-indicators-to-draw
   "Given a shade boundary map produced by
-  `shade.routes.websocket.shades-visible`, returns a list of
+  `shade.routes.room/shades-visible`, returns a list of
   movement-indicator regions that need to be drawn to show the
   cooresponding current target positions for that pair of shades, if
   either or both is moving."
@@ -177,7 +177,7 @@
 
 (defn sunblock-indicators-to-draw
   "Given a shade boundary map produced by
-  `shade.routes.websocket.shades-visible`, returns a list of
+  `shade.routes.room/shades-visible`, returns a list of
   sunblock-indicator images that need to be drawn to show the
   shades are participating in an active sunblock event."
   [{:keys [shades] :as boundaries}]
