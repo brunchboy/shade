@@ -10,7 +10,6 @@
             [mount.core :refer [defstate]]
             [shade.config :refer [env]]
             [shade.db.core :as db]
-            [shade.sun :as sun]
             [shade.util :as util]
             [shade.weather :as weather]))
 
@@ -135,7 +134,7 @@
           (try
             (set-shade-level entry target)
             (catch Throwable t
-              (log/error t "Problem telling Home Assistant to move shade"))))
+              (log/error t "Problem telling Home Assistant to move shade."))))
         (swap! shade-state update-in [:shades (:shade entry)]
                (fn [shade]
                  (assoc shade
@@ -208,7 +207,83 @@
 
 ;;;; Sunrise protection and sun block logic
 
-;; TODO: Port!
+(defn run-sunrise-protect
+  "We have just reached astronomical dawn, close the blackout
+  curtains in all rooms marked for sunrise protection."
+  []
+  (log/info "Running sunrise-protect.")
+  (doseq [shade (filter :home_assistant_entity (db/list-shades-for-sunrise-protect))]
+    (future
+      (try
+        (set-shade-level shade (:close-min shade))
+        (catch Throwable t
+          (log/error t "Problem telling Home Assistant to close shade for sunrise protection.")))))
+  (tickle-state-updater))
+
+(defn close-unobstructed-shade-set
+  "Helper function to close a set of unobstructed shades during the
+  processing of a sunblock group. Takes the list of unobstructed shade
+  records, a snapshot of the current shade state, and the channel used
+  to communicate with the blind controller daemon."
+  [all-unobstructed]
+  (let [unobstructed (filter :home_assistant_entity all-unobstructed)
+        state        @shade-state]
+    (when (seq unobstructed)
+      ;; Save the starting positions of unobstructed shades so we can restore them when sunblock ends.
+      (doseq [shade unobstructed]
+        (let [level (get-in state [:shades (:id shade) :level])]
+          (log/info "Saving sunblock_restore level of shade" (:name shade) "as" level)
+          (db/set-shade-sunblock-restore! {:id               (:id shade)
+                                           :sunblock_restore level})))
+      ;; Close all the unobstructed shades in the sunblock group.
+      (doseq [shade unobstructed]
+        (let [target (:close_min shade)]
+          (future
+            (try
+              (set-shade-level shade target)
+              (tickle-state-updater)
+              (catch Throwable t
+                (log/error t "Problem telling Home Assistant to close shade for sun block.")))
+            (swap! shade-state update-in [:shades (:id shade)]
+               (fn [shade]
+                 (assoc shade
+                        :moving? (not= target (:level shade))
+                        :target-level target)))))))))
+
+(defn record-obstruction-results
+  "Helper function to record all shades that have been delayed in
+  closing by obstructions, and those that are now closed."
+  [all-shades]
+  (let [shades (filter :home_assistant_entity all-shades)
+        state  @shade-state]
+    (doseq [shade shades]
+      (let [current-level   (or (get-in state [:shades (:id shade) :level]) 0)
+            already-closed? (= current-level (:close_min shade))]
+        (db/set-shade-sunblock-state! {:id    (:id shade)
+                                       :state (cond
+                                                already-closed?       "independent"
+                                                (:obstructions shade) "delayed"
+                                                :else                 "closed")})))))
+
+(defn reopen-shades-in-sunblock-set
+  "Helper function to reopen shades when a sunblock event ends."
+  [all-shades]
+  (let [shades (filter :home-assistant-entity all-shades)
+        state  @shade-state]
+    (doseq [shade shades]
+        (let [target (max (or (:sunblock_restore shade) (:open_max shade))
+                          (or (get-in state [:shades (:id shade) :level]) 0))]
+          (future
+            (try
+              (set-shade-level shade target)
+              (tickle-state-updater)
+              (catch Throwable t
+                (log/error t "Problem telling Home Assistant to open shade for sun block.")))
+            (swap! shade-state update-in [:shades (:id shade)]
+               (fn [shade]
+                 (assoc shade
+                        :moving? (not= target (:level shade))
+                        :target-level target))))))))
 
 ;;;; Shade position visualization support
 

@@ -8,9 +8,7 @@
             [java-time :as jt]
             [mount.core :refer [defstate]]
             [ring.adapter.undertow.websocket :as ws]
-            [shade.config :refer [env]]
             [shade.db.core :as db]
-            [shade.sun :as sun]
             [shade.util :as util]
             [shade.weather :as weather]))
 
@@ -269,6 +267,80 @@
   (:shades @shade-state))
 
 
+(defn run-sunrise-protect
+  "We have just reached astronomical dawn, close the blackout
+  curtains in all rooms marked for sunrise protection."
+  []
+  (when-let [ch @channel-open]  ; We have a connection to the blind interface.
+    (log/info "Running sunrise-protect.")
+    (ws/send (str {:action :set-levels
+                   :blinds (mapv (fn [shade]
+                                   {:id    (:controller_id shade)
+                                    :level (:close_min shade)})
+                                 (remove :home_assistant_entity (db/list-shades-for-sunrise-protect)))})
+             ch)
+    (tickle-state-updater)))
+
+(defn close-unobstructed-shade-set
+  "Helper function to close a set of unobstructed shades during the
+  processing of a sunblock group. Takes the list of unobstructed shade
+  records, a snapshot of the current shade state, and the channel used
+  to communicate with the blind controller daemon."
+  [all-unobstructed]
+  (let [unobstructed (remove :home_assistant_entity all-unobstructed)
+        state        @shade-state
+        ch           @channel-open]
+    (when (and ch (seq unobstructed))
+      ;; Save the starting positions of unobstructed shades so we can restore them when sunblock ends.
+      (doseq [shade unobstructed]
+        (let [level (get-in state [:shades (:id shade) :level])]
+          (log/info "Saving sunblock_restore level of shade" (:name shade) "as" level)
+          (db/set-shade-sunblock-restore! {:id               (:id shade)
+                                           :sunblock_restore level})))
+      ;; Close all the unobstructed shades in the sunblock group.
+      (ws/send (str {:action :set-levels
+                     :blinds (mapv (fn [shade]
+                                     {:id    (:controller_id shade)
+                                      :level (:close_min shade)})
+                                   unobstructed)})
+                ch)
+      (tickle-state-updater))))
+
+(defn record-obstruction-results
+  "Helper function to record all shades that have been delayed in
+  closing by obstructions, and those that are now closed."
+  [all-shades]
+  (let [shades (remove :home_assistant_entity all-shades)
+        state  @shade-state]
+    (when @channel-open
+      (doseq [shade shades]
+        (let [current-level   (or (get-in state [:shades (:id shade) :level]) 0)
+              already-closed? (= current-level (:close_min shade))]
+          (db/set-shade-sunblock-state! {:id    (:id shade)
+                                         :state (cond
+                                                  already-closed?       "independent"
+                                                  (:obstructions shade) "delayed"
+                                                  :else                 "closed")}))))))
+
+(defn reopen-shades-in-sunblock-set
+  "Helper function to reopen shades when a sunblock event ends."
+  [all-shades]
+  (let [shades (remove :home-assistant-entity all-shades)
+        state  @shade-state
+        ch     @channel-open]
+    (when ch
+      (ws/send (str {:action :set-levels
+                     :blinds (mapv (fn [shade]
+                                     {:id    (:controller_id shade)
+                                      :level (max (or (:sunblock_restore shade) (:open_max shade))
+                                                  (or (get-in state [:shades (:id shade) :level]) 0))})
+                                   shades)})
+               ch)
+      (tickle-state-updater))))
+
+
+;;;; The state watcher daemon.
+
 (def moving-interval
   "How often to check the blind positions if any are believed to be
   moving, in milliseconds."
@@ -314,252 +386,6 @@
       (catch Throwable t
         (log/error t "Problem requesting battery level update.")))))
 
-(defn sunrise-protect
-  "If we have just reached astronomical dawn, close the blackout
-  curtains in all rooms marked for sunrise protection."
-  [sun-position]
-  (let [last-run (db/find-event {:name "sunrise-protect"})
-        ch       @channel-open]
-    (when-not (and last-run (util/same-day? last-run))      ; Has not already run today.
-      (when (and (> (:elevation sun-position) sun/astronomical-dawn-elevation)    ; It's past astronomical dawn.
-                 ch)  ; And we have a connection to the blind interface.
-        (log/info "Running sunrise-protect.")
-        (ws/send (str {:action :set-levels
-                       :blinds (mapv (fn [shade]
-                                       {:id    (:controller_id shade)
-                                        :level (:close_min shade)})
-                                     (db/list-shades-for-sunrise-protect))})
-                 ch)
-        (db/save-event {:name "sunrise-protect"})
-        (tickle-state-updater)))))
-
-(def sunblock-max-weather-age
-  "The interval beyond which a weather condition report becomes too old
-  for considering in deciding whether we need sun-blocking."
-  (jt/duration 15 :minutes))
-
-(defn recent-enough?
-  "Makes sure a weather observation is new enough for us to still
-  consider it when deciding whether we need sun-blocking."
-  [weather]
-  (pos? (.compareTo sunblock-max-weather-age (jt/duration (:time weather) (jt/zoned-date-time)))))
-
-(def sunblock-temperature-threshold
-  "The temperature below which we suppress closing of shades for
-  thermal sun blocking."
-  60.0)
-
-(defn warm-enough?
-  "Checks whether our temperature information indicates we should
-  implement sun-blocking for temperature control."
-  []
-  (not (or (when-let [weather (:weather @weather/state)]
-             (and (recent-enough? weather)
-                  (< (:temperature weather) sunblock-temperature-threshold)))  ; It was recently enough too cold.
-           (when-let [forecast (weather/forecast-for-today)]
-             (< (:high forecast) sunblock-temperature-threshold)))))  ; The forecast high for the day is too cold.
-
-(def sunblock-cloud-cover-threshold
-  "The cloud cover percentage above which we suppress closing of shades
-  for thermal sun blocking."
-  95)
-
-(defn not-overcast-enough?
-  "Checks whether our current cloud cover indicates we should not skip
-  sun-blocking if the temperature was high enough."
-  []
-  (when-let [weather (:weather @weather/state)]
-    (or (not (recent-enough? weather))
-        (when-let [cloud-percentage (:cloud-percentage weather)]
-          (<= cloud-percentage sunblock-cloud-cover-threshold)))))
-
-(defn sunblock-obstacles
-  "Returns the list of obstacles which can prevent sun shining in through
-  a shade that is part of a sunblock group. If any obstacle has an
-  `min_azimuth` value that is greater than its `max_azimuth`, it is
-  split into two separate obstacles, one from `min_azimuth` to
-  `360.0`, and a second from `0.0` to `max_azimuth`."
-  [shade]
-  (mapcat (fn [obstacle]
-            (if (> (:min_azimuth obstacle) (:max_azimuth obstacle))
-              [(assoc obstacle :min_azimuth 0)
-               (assoc obstacle :max_azimuth 360)]
-              [obstacle]))
-          (db/get-sunblock-obstacles-for-shade {:shade (:id shade)})))
-
-(defn obstructing?
-  "Checks whether an obstacle is currently preventing sunlight from
-  entering its shade."
-  [sun-position obstacle]
-  (and (< (:min_azimuth obstacle) (:azimuth sun-position) (:max_azimuth obstacle))
-       (< (:min_elevation obstacle) (:elevation sun-position) (:max_elevation obstacle))))
-
-(defn obstructions
-  "Checks whether there are currently any obstacles preventing sunlight
-  from entering a shade. Returns either `nil` or the list of such
-  obstacles."
-  [sun-position shade]
-  (seq (filter (partial obstructing? sun-position) (sunblock-obstacles shade))))
-
-(def max-sun-minutes
-  "The number of minutes we will allow the sun to shine through a window
-  if we reopen it thanks to an obstruction before the sun block group ends."
-  5)
-
-(defn can-reopen?
-  "Checks whether a shade can be reopened early for the rest of the
-  night."
-  [sun-position now group shade]
-  (when (obstructions sun-position shade)  ; We can consider it because it is now obstructed.
-    (loop [now          (jt/adjust now jt/plus (jt/minutes 1))
-           sun-position (sun/position now (get-in env [:location :latitude]) (get-in env [:location :longitude]))
-           sun-minutes  0]
-      (if (sun/entering-windows? sun-position group)  ; Is this sun block group still needed?
-        (if (obstructions sun-position shade)  ; Is this shade still obstructed?
-          (recur (jt/adjust now jt/plus (jt/minutes 1))
-                 (sun/position now (get-in env [:location :latitude]) (get-in env [:location :longitude]))
-                 sun-minutes)  ; Keep scanning forward without counting any more sunlight.
-          (when (< sun-minutes max-sun-minutes)  ; Not obstructed, fail if we have reached our sun limit.
-            (recur (jt/adjust now jt/plus (jt/minutes 1))
-                   (sun/position now (get-in env [:location :latitude]) (get-in env [:location :longitude]))
-                   (inc sun-minutes))))  ; Keep scanning forward, counting another minute of sunlight.
-        true))))  ; We reached the end of the sun block group's timespan without letting in too much sunlight.
-
-#_(defn test-obstacles
-  "A test function for working out the obstacle logic."
-  []
-  (let [now          (java-time/zoned-date-time 2023 4 28 15 30 26 0 "America/Chicago")
-        end          (java-time/zoned-date-time 2023 4 28 19 46 55 0 "America/Chicago")
-        sun-position (shade.sun/position now (get-in shade.config/env [:location :latitude])
-                                         (get-in shade.config/env [:location :longitude]))
-        ;; Dayton Street Shades
-        shades       (db/get-sunblock-group-shades {:sunblock_group #uuid  "17eb4b54-c974-403c-8cd9-e0700479bc51"})]
-    (println "sun:" sun-position)
-    (doseq [shade shades]
-      (println "Shade:" (:name shade))
-      (doseq [obstacle (sunblock-obstacles shade)]
-        (when (obstructing? sun-position obstacle)
-          (println "  Obstacle:" (:name obstacle))))
-      (println))))
-
-(defn- close-unobstructed-shade-set
-  "Helper function to close a set of unobstructed shades during the
-  processing of a sunblock group. Takes the list of unobstructed shade
-  records, a snapshot of the current shade state, and the channel used
-  to communicate with the blind controller daemon."
-  [unobstructed state ch]
-  (when (seq unobstructed)
-    ;; Save the starting positions of unobstructed shades so we can restore them when sunblock ends.
-    (doseq [shade unobstructed]
-      (let [level (get-in state [:shades (:id shade) :level])]
-        (log/info "Saving sunblock_restore level of shade" (:name shade) "as" level)
-        (db/set-shade-sunblock-restore! {:id               (:id shade)
-                                         :sunblock_restore level})))
-    ;; Close all the unobstructed shades in the sunblock group.
-    (ws/send (str {:action :set-levels
-                   :blinds (mapv (fn [shade]
-                                   {:id    (:controller_id shade)
-                                    :level (:close_min shade)})
-                                 unobstructed)})
-             ch)
-    (tickle-state-updater)))
-
-(defn sunblock-groups
-  "Check to see if the sun has first entered any sunblock groups today,
-  and it is warm enough we want to block the sun for reasons of
-  temperature, in which case those blinds should be closed. or first
-  exited any which were entered earlier today. `now` tracks the zoned
-  date time at which the sun's position was calculated, for use in
-  looking forward to decide whether do delay closing or advance
-  opening individual shades because of obstacles blocking the sun from
-  entering their windows."
-  [sun-position now]
-  (let [ch    @channel-open
-        warm  (warm-enough?)
-        clear (not-overcast-enough?)]
-    (doseq [group (db/list-sunblock-groups)]
-      (let [last-opened (db/find-event {:name "sunblock-group-entered" :related-id (:id group)})
-            shining?    (sun/entering-windows? sun-position group)]
-        (if-not (and last-opened (util/same-day? last-opened))
-          ;; This group has not yet run today, time to close?
-          (when (and shining?  ; The sun is shining through this group,
-                     warm      ; the weather merits blocking the sun to keep the home cool,
-                     clear     ; some sun may be getting through cloud layers,
-                     ch)       ; and we have a connection to the blind interface.
-            (log/info "Closing blinds for sunblock group" (:name group))
-            (let [shades       (->> (db/get-sunblock-group-shades {:sunblock_group (:id group)})
-                                    (map (fn [shade] (assoc shade :obstructions (obstructions sun-position shade)))))
-                  state        @shade-state
-                  unobstructed (remove :obstructions shades)]
-              (close-unobstructed-shade-set unobstructed state ch)
-              ;; Record the shades that have been delayed in closing by obstructions, and those that are now closed.
-              (doseq [shade shades]
-                (let [current-level   (or (get-in state [:shades (:id shade) :level]) 0)
-                      already-closed? (= current-level (:close_min shade))]
-                  (db/set-shade-sunblock-state! {:id    (:id shade)
-                                                 :state (cond
-                                                          already-closed?       "independent"
-                                                          (:obstructions shade) "delayed"
-                                                          :else                 "closed")}))))
-            (db/save-event {:name "sunblock-group-entered" :related-id (:id group)}))
-
-          ;; This group has run today, is it time to open back up?
-          (let [last-closed (db/find-event {:name "sunblock-group-exited" :related-id (:id group)})
-                state       @shade-state]
-            (if (and (not shining?)  ; Sun is no longer shining through this group.
-                       (not (and last-closed (util/same-day? last-closed)))  ; We have not yet closed it.
-                       ch)             ; And we have a connection to the blind interface.
-              (do
-                (log/info "Reopening blinds for sunblock group" (:name group))
-                (ws/send (str {:action :set-levels
-                               :blinds (mapv (fn [shade]
-                                               {:id    (:controller_id shade)
-                                                :level (max (or (:sunblock_restore shade) (:open_max shade))
-                                                            (or (get-in state [:shades (:id shade) :level]) 0))})
-                                             (db/get-sunblock-group-shades-in-state {:sunblock_group (:id group)
-                                                                                     :state          "closed"}))})
-                         ch)
-                (tickle-state-updater)
-                ;; Clear any state and saved positions, we're done.
-                (db/clear-sunblock-group-shade-states! {:sunblock_group (:id group)})
-                (db/save-event {:name "sunblock-group-exited" :related-id (:id group)}))
-
-              ;; It is not yet time to end this group, but we need to check whether any delayed blinds
-              ;; are now due to open, or if any closed blinds can be opened because they will be obstructed
-              ;; for the rest of the day.
-              (do
-                (when (and shining?  ; The sun is shining through this group,
-                           warm      ; the weather merits blocking the sun to keep the home cool,
-                           clear     ; some sun may be getting through cloud layers,
-                           ch)       ; and we have a connection to the blind interface.
-                  (let [delayed      (db/get-sunblock-group-shades-in-state {:sunblock_group (:id group)
-                                                                             :state          "delayed"})
-                        state        @shade-state
-                        unobstructed (remove :obstructions delayed)]
-                    (when (seq unobstructed)
-                      (log/info "Closing newly unobstructed blinds for sublock group (:name group)"))
-                    (close-unobstructed-shade-set unobstructed state ch)
-                    (doseq [shade unobstructed]
-                      (db/set-shade-sunblock-state! {:id    (:id shade)
-                                                     :state "closed"}))))
-                ;; Finally, look for closed shades that can reopen early for the rest of the day.
-                (let [closed (db/get-sunblock-group-shades-in-state {:sunblock_group (:id group)
-                                                                     :state          "closed"})]
-                  (when (and (seq closed)
-                             ch)
-                    (let [to-reopen (filter (partial can-reopen? sun-position now group) closed)]
-                      (when (seq to-reopen)
-                        (log/info "Reopening early blinds for sunblock group" (:name group))
-                        (ws/send (str {:action :set-levels
-                                       :blinds (mapv (fn [shade]
-                                                       {:id    (:controller_id shade)
-                                                        :level (or (:sunblock_restore shade) (:open_max shade))})
-                                                     to-reopen)})
-                                 ch)
-                        (tickle-state-updater)
-                        (doseq [shade to-reopen]
-                          (db/set-shade-sunblock-state! {:id    (:id shade)
-                                                         :state "reopened"}))))))))))))))
 
 (defn send-alarm
   "Raise an alarm through an IFTTT web hook that will send a push
@@ -592,16 +418,7 @@
   "Determine which events need running now, and run them."
   []
   (future
-    (alarm-if-no-updates)
-    (when-not (throttled? :run-needed-events 20000)
-      (let [now          (jt/zoned-date-time)
-            sun-position (sun/position now
-                                       (get-in env [:location :latitude]) (get-in env [:location :longitude]))]
-        (try
-          (sunrise-protect sun-position)
-          (sunblock-groups sun-position now)
-          (catch Throwable t
-            (log/error t "Problem in run-needed-events")))))))
+    (alarm-if-no-updates)))
 
 (defn- next-wait
   "Calculate how long to wait for our next blind update; it will be much

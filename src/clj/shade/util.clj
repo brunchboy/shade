@@ -275,3 +275,22 @@
        (-> (client/get (str url args))
            :body))
      (log/error "Unable to raise alarm about" message "(No IFTTT_WEBHOOK__KEY environment variable!)")))
+
+(defn throttled?
+  "Make sure a request of a particular kind doesn't get stuttered a
+  bunch of extra times because the scheduler loop is tickled while
+  there are already requests outstanding. Returns truthy if the
+  request was throttled and should be discarded. Relies on a state
+  atom of the sort used by the various go loops."
+  ([state kind]
+   (throttled? state kind 800))
+  ([state kind min-interval-ms]
+   (let [now           (System/currentTimeMillis)
+         eligible-time (+ now min-interval-ms)
+         new-state     (swap! state update-in [:throttle kind]
+                          (fn [old-eligible-time]
+                            (if (or (not old-eligible-time)
+                                    (>= now old-eligible-time))
+                              eligible-time
+                              old-eligible-time)))]
+     (not= eligible-time (get-in new-state [:throttle kind])))))

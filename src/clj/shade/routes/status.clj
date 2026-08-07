@@ -4,9 +4,11 @@
    [java-time :as jt]
    [shade.config :refer [env]]
    [shade.db.core :as db]
+   [shade.home-assistant :as ha]
    [shade.layout :as layout]
    [shade.routes.websocket-control4 :as ws]
    [shade.sun :as sun]
+   [shade.sunblock :as sb]
    [shade.util :as util]
    [shade.weather :as weather]))
 
@@ -32,7 +34,7 @@
   "Finds the shade with the lowest remaining battery power. Returns `nil`
   if we don't yet have battery level information for any shade."
   []
-  (let [shades (map (fn [[k v]] (assoc v :id k)) (:shades @ws/shade-state))
+  (let [shades (map (fn [[k v]] (assoc v :id k)) (concat (:shades @ws/shade-state) (:shades @ha/shade-state)))
         known  (filter :battery-level shades)
         result (when (seq known) (apply min-key :battery-level known))
         result (when result (merge result (select-keys (db/get-shade result) [:name :room])))]
@@ -65,4 +67,4 @@
                            :weather-update    (util/localize-timestamp (:time weather))
                            :weather           weather
                            :high              high
-                           :overcast?         (not (ws/not-overcast-enough?))}))))
+                           :overcast?         (not (sb/not-overcast-enough?))}))))
