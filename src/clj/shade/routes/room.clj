@@ -116,5 +116,7 @@
                         (filter identity)
                         first)]
         (when hit
-          (ws/move-shades {(keyword (str (:shade_id hit))) (:level hit)}))
+          (if (:home_assistant_entity hit)
+            (ha/move-shades {(keyword (str (:shade_id hit))) (:level hit)})
+            (ws/move-shades {(keyword (str (:shade_id hit))) (:level hit)})))
         (json-response hit)))))

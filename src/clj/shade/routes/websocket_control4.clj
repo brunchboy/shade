@@ -204,7 +204,7 @@
   (when-let [ch @channel-open]
     (when-not (empty? preview)
       (let [ids    (map (fn [k] (java.util.UUID/fromString (name k))) (keys preview))
-            shades (db/get-shades {:ids ids})]
+            shades (remove :home_assistant_entity (db/get-shades {:ids ids}))]
         (db/remove-from-active-sunblock {:ids ids})
         (ws/send (str {:action :set-levels
                        :blinds (mapv (fn [shade]

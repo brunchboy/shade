@@ -143,7 +143,33 @@
                         :target-level target)))))
     (tickle-state-updater)))
 
-;; TODO: Resume with websocket_control4/move-shades
+(defn move-shades
+  "Sets the shades mentioned in a preview request to the desired
+  levels. Also handles taps to move shades on the room images."
+  [preview]
+  (when-not (empty? preview)
+    (let [ids    (map (fn [k] (java.util.UUID/fromString (name k))) (keys preview))
+          shades (filter :home_assistant_entity (db/get-shades {:ids ids}))]
+      (db/remove-from-active-sunblock {:ids ids})
+      (doseq [shade shades]
+        ;; This painful bit is because JS sometimes sends us the values as
+        ;; strings, and sometimes as Integers, which `Long/valueOf` does not
+        ;; support.
+        (let [level   (Long/valueOf (str (get preview (-> shade :id str keyword))))
+              leveled (assoc shade :level level)
+              target  (util/narrow-macro-level leveled)]
+          (future
+            (try
+              (set-shade-level shade target)
+              (swap! shade-state update-in [:shades (:id shade)]
+                     (fn [state]
+                       (assoc state :moving? true
+                              :target-level target)))
+              (tickle-state-updater)
+              (catch Throwable t
+                (log/error t "Problem telling Home Assistant to move shade" shade "to level" target)))))))))
+
+;; TODO: Resume with websocket_control4/macros-in-effect
 
 ;;;; Sunrise protection and sun block logic
 
@@ -180,7 +206,7 @@
   (future
     (try
       (when-not (throttled? :position-update)
-        (log/info "Requesting blind position update from Home Assistant.")
+        (log/info "Fetching blind position update from Home Assistant.")
         (doseq [[entity state] (fetch-shade-cover-states)]
           (if-let [shade (db/get-shade-by-home-assistant-entity {:home-assistant-entity entity})]
             (if (number? (:level state))
