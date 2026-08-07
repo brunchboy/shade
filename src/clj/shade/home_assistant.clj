@@ -169,7 +169,42 @@
               (catch Throwable t
                 (log/error t "Problem telling Home Assistant to move shade" shade "to level" target)))))))))
 
-;; TODO: Resume with websocket_control4/macros-in-effect
+(defn macros-in-effect
+  "Loads the entries available to the specified user for each specified
+  macro and checks whether the blinds are currently at the level
+  desired. Returns the list of macros with an additional `:in-effect`
+  attribute indicating whether that macro would do nothing if run by
+  that user right now."
+  [macros user-id]
+  (let [state (:shades @shade-state)]
+    (mapv (fn [macro]
+            (let [entries (->> (db/get-macro-entries {:macro (:id macro)
+                                                      :user  user-id})
+                               (filter :home_assistant_entity))]
+              (assoc macro :in-effect (every? #(= (util/narrow-macro-level %)
+                                                  (get-in state [(:shade %) :level])) entries)
+                     :rooms (util/in-effect-by-room state entries))))
+          macros)))
+
+(defn shades-for-macro-editor
+  "Returns the list of shades including their current level and battery
+  level. If any are mentioned in the supplied list of macro entries,
+  adds the macro level to that entry."
+  [entries]
+  (let [state       (:shades @shade-state)
+        entry-index (reduce (fn [acc entry]
+                              (assoc acc (:shade entry) entry))
+                            {}
+                            entries)]
+    (map (fn [shade]
+           (let [leveled       (assoc shade :level (get-in state [(:id shade) :level] (:close_min shade)))
+                 entry         (get entry-index (:id shade))
+                 battery-level (get-in state [(:id shade) :battery-level] -1)]
+             (merge shade
+                    {:level         (util/expand-shade-level leveled)
+                     :macro-level   (get entry :level)
+                     :battery-level battery-level})))
+         (filter :home_assistant_entity (db/list-shades)))))
 
 ;;;; Sunrise protection and sun block logic
 

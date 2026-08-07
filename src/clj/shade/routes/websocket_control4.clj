@@ -235,8 +235,9 @@
   [macros user-id]
   (let [state (:shades @shade-state)]
     (mapv (fn [macro]
-            (let [entries (db/get-macro-entries {:macro (:id macro)
-                                                 :user  user-id})]
+            (let [entries (->> (db/get-macro-entries {:macro (:id macro)
+                                                      :user  user-id})
+                               (remove :home_assistant_entity))]
               (assoc macro :in-effect (every? #(= (util/narrow-macro-level %)
                                                   (get-in state [(:shade %) :level])) entries)
                      :rooms (util/in-effect-by-room state entries))))
@@ -260,7 +261,7 @@
                     {:level         (util/expand-shade-level leveled)
                      :macro-level   (get entry :level)
                      :battery-level battery-level})))
-         (db/list-shades))))
+         (remove :home_assistant_entity (db/list-shades)))))
 
 (defn current-shade-states
   "Return the current information we have about shades we manage."

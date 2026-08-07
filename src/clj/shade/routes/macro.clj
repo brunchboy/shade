@@ -8,6 +8,7 @@
    [ring.util.json-response :refer [json-response]]
    [ring.util.response :refer [redirect]]
    [shade.db.core :as db]
+   [shade.home-assistant :as ha]
    [shade.layout :as layout]
    [shade.routes.websocket-control4 :as ws])
   (:import
@@ -16,10 +17,13 @@
 (defn macro-states [request]
   (let [user-id   (get-in request [:session :identity :id])
         macros    (db/list-macros-enabled-for-user {:user user-id})]
-    (response/ok (map #(select-keys % [:id :in-effect :rooms]) (ws/macros-in-effect macros user-id)))))
+    (response/ok (map #(select-keys % [:id :in-effect :rooms])
+                      (concat (ws/macros-in-effect macros user-id) (ha/macros-in-effect macros user-id))))))
 
 (defn run-macro [{:keys [path-params session params]}]
   (ws/run-macro (UUID/fromString (:id path-params)) (get-in session [:identity :id])
+                (when-let [room (:room params)] (UUID/fromString room)))
+  (ha/run-macro (UUID/fromString (:id path-params)) (get-in session [:identity :id])
                 (when-let [room (:room params)] (UUID/fromString room)))
   (json-response {:action "Macro run"}))
 
@@ -92,7 +96,7 @@
   (reduce (fn [acc [k v]]
             (cond
               (re-matches #"enabled-.*" k)
-              (assoc-in acc [(UUID/fromString (subs k 8)) :enabled] (boolean (= v "on")))
+              (assoc-in acc [(UUID/fromString (subs k 8)) :enabled] (= v "on"))
 
               (re-matches #"level-.*" k)
               (assoc-in acc [(UUID/fromString (subs k 6)) :level] (Long/parseLong v))

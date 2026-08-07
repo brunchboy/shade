@@ -6,6 +6,7 @@
    [clojure.string :as str]
    [ring.util.json-response :refer [json-response]]
    [shade.db.core :as db]
+   [shade.home-assistant :as ha]
    [shade.layout :as layout]
    [shade.middleware :as middleware]
    [shade.routes.admin :as admin]
@@ -57,7 +58,7 @@
   (let [user-id     (get-in request [:session :identity :id])
         macros      (db/list-macros-enabled-for-user {:user user-id})
         rooms       (db/list-rooms-for-user {:user user-id})
-        in-effect   (ws/macros-in-effect macros user-id)
+        in-effect   (concat (ws/macros-in-effect macros user-id) (ha/macros-in-effect macros user-id))
         macro-rooms (build-macro-rooms rooms in-effect)]
     (layout/render request "home.html" (merge (select-keys request [:active? :admin?])
                                               {:user        (db/get-user {:id user-id})

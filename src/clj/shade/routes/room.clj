@@ -27,7 +27,7 @@
         room      (db/get-room {:id room-id})
         macros    (db/list-macros-enabled-for-user-in-room {:user user-id
                                                             :room room-id})
-        in-effect (ws/macros-in-effect macros user-id)]
+        in-effect (concat (ws/macros-in-effect macros user-id) (ha/macros-in-effect macros user-id))]
     (if (and room (some #(= (:id %) room-id) rooms))
       (layout/render request "room.html"
                      (merge (select-keys request [:active? :admin?])
