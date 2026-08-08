@@ -17,7 +17,24 @@ continue to work with my code), I decided to buy an open-source Home
 Assistant box and its Zigbee interface instead. The main branch has
 been modified to work with that, better, approach. I have created a
 `control4` branch with the old code in case anyone needs to work with
-Control4 in the future.
+Control4 alone in the future, and this branch represents the midpoint
+of my porting to Home Assistant.
+
+On this branch, you can have blinds connected to both Home Assistant
+and Control4 Director simultaneously, and Shade knows which to use to
+talk to each based on whether the column `home_assistant_entity` is
+`null` or not. It properly integrates status information from each on
+the room views, and lets you tap on the image to set levels regardless
+of which controller is responsible.
+
+Not everything is smooth, though: I stopped before getting macro state
+information properly combined, and the status page is still mostly
+Control4 focused. However this got me far enough to know I could move
+the rest of my blinds over and finish things. I am leaving this branch
+around in case someone ever wants to take up the mantle of fully
+supporting both controllers simultaneously (assuming current,
+non-bricked versions of Control4 Director can still be interacted with
+by posing as the Android app).
 
 ## Overview
 
