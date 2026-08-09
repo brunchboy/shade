@@ -127,20 +127,21 @@
         in-room (cond->> entries
                   room-id
                   (filter #(= (:room %) room-id)))]
-    (db/remove-from-active-sunblock {:ids (mapv :shade in-room)})
-    (doseq [entry entries]
-      (let [target (util/narrow-macro-level entry)]
-        (future
-          (try
-            (set-shade-level entry target)
-            (catch Throwable t
-              (log/error t "Problem telling Home Assistant to move shade."))))
-        (swap! shade-state update-in [:shades (:shade entry)]
-               (fn [shade]
-                 (assoc shade
-                        :moving? (not= target (:level shade))
-                        :target-level target)))))
-    (tickle-state-updater)))
+    (when (seq entries)
+      (db/remove-from-active-sunblock {:ids (mapv :shade in-room)})
+      (doseq [entry entries]
+        (let [target (util/narrow-macro-level entry)]
+          (future
+            (try
+              (set-shade-level entry target)
+              (catch Throwable t
+                (log/error t "Problem telling Home Assistant to move shade."))))
+          (swap! shade-state update-in [:shades (:shade entry)]
+                 (fn [shade]
+                   (assoc shade
+                          :moving? (not= target (:level shade))
+                          :target-level target)))))
+      (tickle-state-updater))))
 
 (defn move-shades
   "Sets the shades mentioned in a preview request to the desired
@@ -215,10 +216,15 @@
   (doseq [shade (filter :home_assistant_entity (db/list-shades-for-sunrise-protect))]
     (future
       (try
-        (set-shade-level shade (:close-min shade))
+        (let [target (:close_min shade 0)]
+          (set-shade-level shade target)
+          (swap! shade-state update-in [:shades (:id shade)]
+                 (fn [state]
+                   (assoc state :moving? true
+                          :target-level target))))
+        (tickle-state-updater)
         (catch Throwable t
-          (log/error t "Problem telling Home Assistant to close shade for sunrise protection.")))))
-  (tickle-state-updater))
+          (log/error t "Problem telling Home Assistant to close shade for sunrise protection."))))))
 
 (defn close-unobstructed-shade-set
   "Helper function to close a set of unobstructed shades during the
