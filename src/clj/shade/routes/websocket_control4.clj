@@ -182,18 +182,19 @@
                   room-id
                   (filter #(= (:room %) room-id)))]
     (when-let [ch @channel-open]
-      (db/remove-from-active-sunblock {:ids (mapv :shade in-room)})
-      (ws/send (str {:action :set-levels
-                     :blinds (mapv (fn [entry]
-                                     {:id    (:controller_id entry)
-                                      :level (util/narrow-macro-level entry)})
-                                   in-room)})
-               ch)
-      (doseq [entry entries]
-        (swap! shade-state update-in [:shades (:shade entry)]
-               (fn [shade]
-                 (assoc shade :moving? (not= (util/narrow-macro-level entry) (:level shade))))))
-      (tickle-state-updater))))
+      (when (seq entries)
+        (db/remove-from-active-sunblock {:ids (mapv :shade in-room)})
+        (ws/send (str {:action :set-levels
+                       :blinds (mapv (fn [entry]
+                                       {:id    (:controller_id entry)
+                                        :level (util/narrow-macro-level entry)})
+                                     in-room)})
+                 ch)
+        (doseq [entry entries]
+          (swap! shade-state update-in [:shades (:shade entry)]
+                 (fn [shade]
+                   (assoc shade :moving? (not= (util/narrow-macro-level entry) (:level shade))))))
+        (tickle-state-updater)))))
 
 (defn move-shades
   "Sets the shades mentioned in a preview request to the desired
@@ -273,13 +274,15 @@
   []
   (when-let [ch @channel-open]  ; We have a connection to the blind interface.
     (log/info "Running sunrise-protect.")
-    (ws/send (str {:action :set-levels
-                   :blinds (mapv (fn [shade]
-                                   {:id    (:controller_id shade)
-                                    :level (:close_min shade)})
-                                 (remove :home_assistant_entity (db/list-shades-for-sunrise-protect)))})
-             ch)
-    (tickle-state-updater)))
+    (let [shades (remove :home_assistant_entity (db/list-shades-for-sunrise-protect))]
+      (when (seq shades)
+        (ws/send (str {:action :set-levels
+                       :blinds (mapv (fn [shade]
+                                       {:id    (:controller_id shade)
+                                        :level (:close_min shade)})
+                                     shades)})
+                 ch)
+        (tickle-state-updater)))))
 
 (defn close-unobstructed-shade-set
   "Helper function to close a set of unobstructed shades during the
