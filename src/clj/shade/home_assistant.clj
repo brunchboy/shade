@@ -247,14 +247,14 @@
           (future
             (try
               (set-shade-level shade target)
-              (tickle-state-updater)
-              (catch Throwable t
-                (log/error t "Problem telling Home Assistant to close shade for sun block.")))
-            (swap! shade-state update-in [:shades (:id shade)]
+              (swap! shade-state update-in [:shades (:id shade)]
                (fn [shade]
                  (assoc shade
                         :moving? (not= target (:level shade))
-                        :target-level target)))))))))
+                        :target-level target)))
+              (tickle-state-updater)
+              (catch Throwable t
+                (log/error t "Problem telling Home Assistant to close shade for sun block.")))))))))
 
 (defn record-obstruction-results
   "Helper function to record all shades that have been delayed in
@@ -282,14 +282,14 @@
           (future
             (try
               (set-shade-level shade target)
-              (tickle-state-updater)
-              (catch Throwable t
-                (log/error t "Problem telling Home Assistant to open shade for sun block.")))
-            (swap! shade-state update-in [:shades (:id shade)]
+              (swap! shade-state update-in [:shades (:id shade)]
                (fn [shade]
                  (assoc shade
                         :moving? (not= target (:level shade))
-                        :target-level target))))))))
+                        :target-level target)))
+              (tickle-state-updater)
+              (catch Throwable t
+                (log/error t "Problem telling Home Assistant to open shade for sun block."))))))))
 
 ;;;; Shade position visualization support
 
