@@ -329,9 +329,10 @@
               (swap! shade-state update-in [:shades (:id shade)] merge state)
               (log/error "Received malformed variables for blind" (:name shade) "so ignoring HA positon update:" state))
             (log/warn "Received unrecognized Home Assistant entity name for position update:" entity)))
-        (let [last-update (:last-battery-update @shade-state)]
-          (when (or (not last-update)
-                    (> (- (System/currentTimeMillis) last-update) battery-update-interval))
+        (swap! shade-state assoc :last-update (System/currentTimeMillis))
+        (let [bat-update (:last-battery-update @shade-state)]
+          (when (or (not bat-update)
+                    (> (- (System/currentTimeMillis) bat-update) battery-update-interval))
             (log/info "Requesting battery level updates from Home Assistant.")
             (doseq [shade (db/list-shades)]
               (when-let [entity (:home_assistant_entity shade)]
@@ -356,6 +357,33 @@
   []
   (if (some :moving? (vals (:shades @shade-state))) moving-interval stopped-interval))
 
+(defn send-alarm
+  "Raise an alarm through an IFTTT web hook that will send a push
+  notification because we have not received a shade update in a
+  multiple of our update interval. Records that multiple to suppress
+  redundant alarms."
+  [multiple]
+  (util/send-ifttt-notification  (str "No successful shade state update in " multiple " attempts!"))
+  (swap! shade-state assoc :alarm multiple))
+
+(defn alarm-if-no-updates
+  "Checks if too long has passed since we received a blinds update, and
+  if so, raises an alarm to check on the system state."
+  []
+  (try
+    (let [state   @shade-state
+          delayed (quot (- (System/currentTimeMillis) (or (:last-update state) (:started state))) stopped-interval)]
+      (cond (< delayed 3)
+            (swap! shade-state dissoc :alarm)
+
+            (and (>= delayed 120) (< (:alarm state 0) 120))
+            (send-alarm 120)
+
+            (and (>= delayed 3) (< (:alarm state 0) 3))
+            (send-alarm 3)))
+    (catch Throwable t
+      (log/error t "Problem raising alarm about delayed shade updates."))))
+
 (defn start-state-updater
   "Starts the async loop which keeps tabs on the current shade
   positions."
@@ -367,18 +395,18 @@
                    tickle-chan   (async/chan 1)]
                (async/go
                  (try
-                   (async/<! (async/timeout 200))  ; Wait for atom to be initialized. TODO: use tickle-chan instead?
+                   (async/<! (async/timeout 200)) ; Wait for atom to be initialized.
                    (request-position-update)
                    (weather/update-when-due)
                    (loop [[_v c] (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true})]
                      (when (and (not= c shutdown-chan) (:shutdown @shade-state))
                        (request-position-update)
                        (weather/update-when-due)
-                       #_(run-needed-events)  ; TODO!
+                       (alarm-if-no-updates)
                        (recur (async/alts! [shutdown-chan tickle-chan (async/timeout (next-wait))] {:priority true}))))
                    (catch Throwable t
                      (log/error t "Problem in Home Assistant state-updater go loop")))
-                 (reset! shade-state {}))  ; We have been shut down.
+                 (reset! shade-state {})) ; We have been shut down.
                {:shutdown shutdown-chan
                 :tickle   tickle-chan
                 :started  (System/currentTimeMillis)
