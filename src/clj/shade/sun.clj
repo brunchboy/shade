@@ -9,8 +9,7 @@
   Later functions build on these to compute other related and useful
   items."
   (:require [shade.config :refer [env]]
-            [java-time :as jt])
-  (:import (java.time.temporal ChronoField)))
+            [java-time :as jt]))
 
 (defn decimal-degrees
   "Convert degrees, minutes, and seconds to decimal degrees."
@@ -31,8 +30,7 @@
   (let [offset (/ (jt/as t :offset-seconds)
                   (double (jt/as (jt/duration 1 :hours) :seconds)))]
     (+ (- (jt/as t :hour-of-day) offset)  ; The current hour of the day at Greenwich.
-       ;; TODO: port next line to clojure.java-time once next release fixes lack of :minute-of-hour
-       (/ (.get t ChronoField/MINUTE_OF_HOUR) (double (jt/as (jt/duration 1 :hours) :minutes)))  ; Decimal minute.
+       (/ (jt/as t :minute-of-hour) (double (jt/as (jt/duration 1 :hours) :minutes)))  ; Decimal minute.
        (/ (jt/as t :second-of-minute) (double (jt/as (jt/duration 1 :hours) :seconds)))))) ; Decimal second.
 
 

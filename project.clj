@@ -8,7 +8,7 @@
                  [buddy/buddy-hashers "1.8.158"]
                  [buddy/buddy-sign "3.4.333"]
                  [ch.qos.logback/logback-classic "1.4.7"]
-                 [clojure.java-time "1.2.0"]
+                 [clojure.java-time "1.4.2"]
                  [conman "0.9.6"]
                  [cprop "0.1.19"]
                  [expound "0.9.0"]
