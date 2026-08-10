@@ -61,8 +61,8 @@
                            :sunrise           (sun/find-sunrise)
                            :sunset            (sun/find-sunset)
                            :connected?        (some? @ws/channel-open)
-                           :blinds-update     (util/format-timestamp-relative (:last-update @ws/shade-state))
-                           :battery-update    (util/format-timestamp-relative (:last-battery-update @ws/shade-state))
+                           :blinds-update     (util/format-timestamp-relative (:last-update @ha/shade-state))
+                           :battery-update    (util/format-timestamp-relative (:last-battery-update @ha/shade-state))
                            :lowest-battery    (lowest-battery-shade)
                            :weather-update    (util/localize-timestamp (:time weather))
                            :weather           weather

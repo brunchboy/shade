@@ -396,7 +396,8 @@
   multiple of our update interval. Records that multiple to suppress
   redundant alarms."
   [multiple]
-  (util/send-ifttt-notification  (str "No response from daemon in " multiple " attempts!"))
+  (log/warn "No response from Control4 daemon in" multiple "attempts!")
+  #_(util/send-ifttt-notification  (str "No response from daemon in " multiple " attempts!"))
   (swap! shade-state assoc :alarm multiple))
 
 (defn alarm-if-no-updates
