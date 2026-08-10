@@ -182,7 +182,7 @@
                   room-id
                   (filter #(= (:room %) room-id)))]
     (when-let [ch @channel-open]
-      (when (seq entries)
+      (when (seq in-room)
         (db/remove-from-active-sunblock {:ids (mapv :shade in-room)})
         (ws/send (str {:action :set-levels
                        :blinds (mapv (fn [entry]
@@ -190,7 +190,7 @@
                                         :level (util/narrow-macro-level entry)})
                                      in-room)})
                  ch)
-        (doseq [entry entries]
+        (doseq [entry in-room]
           (swap! shade-state update-in [:shades (:shade entry)]
                  (fn [shade]
                    (assoc shade :moving? (not= (util/narrow-macro-level entry) (:level shade))))))

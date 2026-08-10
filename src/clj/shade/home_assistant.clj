@@ -127,21 +127,21 @@
         in-room (cond->> entries
                   room-id
                   (filter #(= (:room %) room-id)))]
-    (when (seq entries)
+    (when (seq in-room)
       (db/remove-from-active-sunblock {:ids (mapv :shade in-room)})
-      (doseq [entry entries]
+      (doseq [entry in-room]
         (let [target (util/narrow-macro-level entry)]
           (future
             (try
               (set-shade-level entry target)
-              (catch Throwable t
-                (log/error t "Problem telling Home Assistant to move shade."))))
-          (swap! shade-state update-in [:shades (:shade entry)]
+              (swap! shade-state update-in [:shades (:shade entry)]
                  (fn [shade]
                    (assoc shade
                           :moving? (not= target (:level shade))
-                          :target-level target)))))
-      (tickle-state-updater))))
+                          :target-level target))
+                 (tickle-state-updater))
+              (catch Throwable t
+                (log/error t "Problem telling Home Assistant to move shade.")))))))))
 
 (defn move-shades
   "Sets the shades mentioned in a preview request to the desired
