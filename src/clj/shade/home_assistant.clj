@@ -274,7 +274,7 @@
 (defn reopen-shades-in-sunblock-set
   "Helper function to reopen shades when a sunblock event ends."
   [all-shades]
-  (let [shades (filter :home-assistant-entity all-shades)
+  (let [shades (filter :home_assistant_entity all-shades)
         state  @shade-state]
     (doseq [shade shades]
         (let [target (max (or (:sunblock_restore shade) (:open_max shade))
