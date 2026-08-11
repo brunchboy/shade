@@ -138,8 +138,8 @@
                  (fn [shade]
                    (assoc shade
                           :moving? (not= target (:level shade))
-                          :target-level target))
-                 (tickle-state-updater))
+                          :target-level target)))
+              (tickle-state-updater)
               (catch Throwable t
                 (log/error t "Problem telling Home Assistant to move shade.")))))))))
 
