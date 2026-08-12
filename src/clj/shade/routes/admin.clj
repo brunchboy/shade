@@ -4,9 +4,11 @@
             [shade.layout :as layout]))
 
 (defn admin-page [request]
-  (let [user-id (get-in request [:session :identity :id])]
+  (let [user-id (get-in request [:session :identity :id])
+        rooms   (db/list-rooms-for-user {:user user-id})]
     (layout/render request "admin.html" (merge (select-keys request [:active? :admin?])
                                                {:user            (db/get-user {:id user-id})
+                                                :rooms           rooms
                                                 :macros          (db/list-macros)
                                                 :users           (db/list-users)
                                                 :sunblock-groups (db/list-sunblock-groups)
