@@ -3,21 +3,21 @@
   (:require
    [ring.util.json-response :refer [json-response]]
    [shade.db.core :as db]
+   [shade.home-assistant :as ha]
    [shade.layout :as layout]
-   [shade.routes.websocket-control4 :as ws]
    [shade.util :as util]))
 
 (defn refresh-battery-state [{:keys [session]}]
   (let [user (:identity session)]
     (if (:admin user)
-      (do (ws/force-battery-update)
+      (do (ha/force-battery-update)
           (json-response {:action "Battery update requested"}))
       (layout/error-page {:status 401 :title "401 - Unauthorized"}))))
 
 (defn battery-page [{:keys [session] :as request}]
   (let [user-id (get-in session [:identity :id])
         rooms   (db/list-rooms-for-user {:user user-id})
-        shades  (ws/shades-for-macro-editor nil)]
+        shades  (ha/shades-for-macro-editor nil)]
     (layout/render request "admin-batteries.html"
                    (merge (select-keys request [:active? :admin?])
                             {:user    (db/get-user {:id user-id})
