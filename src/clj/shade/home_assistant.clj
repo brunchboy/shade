@@ -303,7 +303,7 @@
 (def moving-interval
   "How often to check the blind positions if any are believed to be
   moving, in milliseconds."
-  (jt/as (jt/duration 1 :seconds) :millis))
+  (jt/as (jt/duration 2 :seconds) :millis))
 
 (def stopped-interval
   "How often to check the blind positions if none are believed to be
@@ -379,8 +379,8 @@
             (and (>= delayed 120) (< (:alarm state 0) 120))
             (send-alarm 120)
 
-            (and (>= delayed 3) (< (:alarm state 0) 3))
-            (send-alarm 3)))
+            (and (>= delayed 6) (< (:alarm state 0) 6))
+            (send-alarm 6)))
     (catch Throwable t
       (log/error t "Problem raising alarm about delayed shade updates."))))
 
