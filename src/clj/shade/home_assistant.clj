@@ -312,12 +312,12 @@
 
 (def battery-update-interval
   "How often to check the battery levels, in milliseconds."
-  (jt/as (jt/duration 4 :hours) :millis))
+  (jt/as (jt/duration 1 :days) :millis))
 
 (defn- request-position-update
-  "Requests the current blind positions on a separate thread if the web
-  socket is open. Also, if it's been long enough since we last checked
-  the battery levels, check them again."
+  "Requests the current blind positions on a separate thread. Also, if
+  it's been long enough since we last checked the battery levels,
+  check them again, and send an alarm if there is a low battery."
   []
   (future
     (try
@@ -341,7 +341,11 @@
                     (swap! shade-state update-in [:shades (:id shade)] merge battery))
                   (catch Throwable t
                     (log/error t "Problem requesting battery information for" entity "from Home Assistant.")))))
-            (swap! shade-state assoc :last-battery-update (System/currentTimeMillis)))))
+            (swap! shade-state assoc :last-battery-update (System/currentTimeMillis))
+            (let [levels    (->> (:shades @shade-state) vals (map :battery-level) (filter identity) (remove neg?))
+                  min-level (apply min (conj levels 100.0))]  ; Don't crash if no levels yet known.
+            (when (< min-level 5.0)
+              (util/send-ifttt-notification (format "Lowest battery level: %.1f%%" (double min-level))))))))
       (catch Throwable t
         (log/error t "Problem requesting blind information from Home Assistant.")))))
 
