@@ -1,6 +1,5 @@
 (ns shade.core
   (:require [shade.handler :as handler]
-            [shade.home-assistant :as ha]
             [shade.nrepl :as nrepl]
             [cider.nrepl :refer (cider-nrepl-handler)]
             [luminus.http-server :as http]

@@ -7,7 +7,6 @@
             [shade.config :refer [env]]
             [shade.db.core :as db]
             [shade.home-assistant :as ha]
-            [shade.routes.websocket-control4 :as ws]
             [shade.sun :as sun]
             [shade.util :as util]
             [shade.weather :as weather]))
@@ -30,7 +29,6 @@
     (when-not (and last-run (util/same-day? last-run)) ; Has not already run today.
       (when (> (:elevation sun-position) sun/astronomical-dawn-elevation) ; It's past astronomical dawn.
         (log/info "Running sunrise-protect.")
-        (ws/run-sunrise-protect)
         (ha/run-sunrise-protect)
         (db/save-event {:name "sunrise-protect"})))))
 
@@ -169,11 +167,9 @@
             (let [shades       (->> (db/get-sunblock-group-shades {:sunblock_group (:id group)})
                                     (map (fn [shade] (assoc shade :obstructions (obstructions sun-position shade)))))
                   unobstructed (remove :obstructions shades)]
-              (ws/close-unobstructed-shade-set unobstructed)
               (ha/close-unobstructed-shade-set unobstructed)
 
               ;; Record the shades that have been delayed in closing by obstructions, and those that are now closed.
-              (ws/record-obstruction-results shades)
               (ha/record-obstruction-results shades))
             (db/save-event {:name "sunblock-group-entered" :related-id (:id group)}))
 
@@ -184,7 +180,6 @@
               (let [shades (db/get-sunblock-group-shades-in-state {:sunblock_group (:id group)
                                                                    :state          "closed"})]
                 (log/info "Reopening blinds for sunblock group" (:name group))
-                (ws/reopen-shades-in-sunblock-set shades)
                 (ha/reopen-shades-in-sunblock-set shades)
 
                 ;; Clear any state and saved positions, we're done.
@@ -203,7 +198,6 @@
                         unobstructed (remove :obstructions delayed)]
                     (when (seq unobstructed)
                       (log/info "Closing newly unobstructed blinds for sublock group (:name group)"))
-                    (ws/close-unobstructed-shade-set unobstructed)
                     (ha/close-unobstructed-shade-set unobstructed)
                     (doseq [shade unobstructed]
                       (db/set-shade-sunblock-state! {:id    (:id shade)
@@ -215,7 +209,6 @@
                     (let [to-reopen (filter (partial can-reopen? sun-position now group) closed)]
                       (when (seq to-reopen)
                         (log/info "Reopening early blinds for sunblock group" (:name group))
-                        (ws/reopen-shades-in-sunblock-set to-reopen)
                         (ha/reopen-shades-in-sunblock-set to-reopen)
                         (doseq [shade to-reopen]
                           (db/set-shade-sunblock-state! {:id    (:id shade)

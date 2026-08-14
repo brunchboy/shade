@@ -6,7 +6,6 @@
    [shade.db.core :as db]
    [shade.home-assistant :as ha]
    [shade.layout :as layout]
-   [shade.routes.websocket-control4 :as ws]
    [shade.sun :as sun]
    [shade.sunblock :as sb]
    [shade.util :as util]
@@ -34,7 +33,7 @@
   "Finds the shade with the lowest remaining battery power. Returns `nil`
   if we don't yet have battery level information for any shade."
   []
-  (let [shades (map (fn [[k v]] (assoc v :id k)) (concat (:shades @ws/shade-state) (:shades @ha/shade-state)))
+  (let [shades (map (fn [[k v]] (assoc v :id k)) (:shades @ha/shade-state))
         known  (filter :battery-level shades)
         result (when (seq known) (apply min-key :battery-level known))
         result (when result (merge result (select-keys (db/get-shade result) [:name :room])))]
@@ -54,13 +53,11 @@
                           {:user              (db/get-user {:id user-id})
                            :rooms             rooms
                            :events            (format-events)
-                           :now               (util/localize-timestamp (jt/instant)
-                                               )
+                           :now               (util/localize-timestamp (jt/instant))
                            :sun               (sun/position (jt/zoned-date-time) latitude longitude)
                            :astronomical-dawn (sun/find-sunrise sun/astronomical-dawn-elevation)
                            :sunrise           (sun/find-sunrise)
                            :sunset            (sun/find-sunset)
-                           :connected?        (some? @ws/channel-open)
                            :blinds-update     (util/format-timestamp-relative (:last-update @ha/shade-state))
                            :battery-update    (util/format-timestamp-relative (:last-battery-update @ha/shade-state))
                            :lowest-battery    (lowest-battery-shade)

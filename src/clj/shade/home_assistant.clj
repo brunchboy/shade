@@ -121,9 +121,7 @@
   If `room-id` is not `nil`, only entries for blinds in that room
   will be used."
   [macro-id user-id room-id]
-  (let [entries (->> (db/get-macro-entries {:macro macro-id
-                                            :user  user-id})
-                     (filter :home_assistant_entity))
+  (let [entries (db/get-macro-entries {:macro macro-id :user user-id})
         in-room (cond->> entries
                   room-id
                   (filter #(= (:room %) room-id)))]
@@ -149,7 +147,7 @@
   [preview]
   (when-not (empty? preview)
     (let [ids    (map (fn [k] (java.util.UUID/fromString (name k))) (keys preview))
-          shades (filter :home_assistant_entity (db/get-shades {:ids ids}))]
+          shades (db/get-shades {:ids ids})]
       (db/remove-from-active-sunblock {:ids ids})
       (doseq [shade shades]
         ;; This painful bit is because JS sometimes sends us the values as
@@ -178,9 +176,7 @@
   [macros user-id]
   (let [state (:shades @shade-state)]
     (mapv (fn [macro]
-            (let [entries (->> (db/get-macro-entries {:macro (:id macro)
-                                                      :user  user-id})
-                               (filter :home_assistant_entity))]
+            (let [entries (db/get-macro-entries {:macro (:id macro) :user user-id})]
               (assoc macro :in-effect (every? #(= (util/narrow-macro-level %)
                                                   (get-in state [(:shade %) :level])) entries)
                      :rooms (util/in-effect-by-room state entries))))
@@ -204,7 +200,7 @@
                     {:level         (util/expand-shade-level leveled)
                      :macro-level   (get entry :level)
                      :battery-level battery-level})))
-         (filter :home_assistant_entity (db/list-shades)))))
+         (db/list-shades))))
 
 ;;;; Sunrise protection and sun block logic
 
@@ -213,7 +209,7 @@
   curtains in all rooms marked for sunrise protection."
   []
   (log/info "Running sunrise-protect.")
-  (doseq [shade (filter :home_assistant_entity (db/list-shades-for-sunrise-protect))]
+  (doseq [shade (db/list-shades-for-sunrise-protect)]
     (future
       (try
         (let [target (:close_min shade 0)]
@@ -231,9 +227,8 @@
   processing of a sunblock group. Takes the list of unobstructed shade
   records, a snapshot of the current shade state, and the channel used
   to communicate with the blind controller daemon."
-  [all-unobstructed]
-  (let [unobstructed (filter :home_assistant_entity all-unobstructed)
-        state        @shade-state]
+  [unobstructed]
+  (let [state @shade-state]
     (when (seq unobstructed)
       ;; Save the starting positions of unobstructed shades so we can restore them when sunblock ends.
       (doseq [shade unobstructed]
@@ -259,9 +254,8 @@
 (defn record-obstruction-results
   "Helper function to record all shades that have been delayed in
   closing by obstructions, and those that are now closed."
-  [all-shades]
-  (let [shades (filter :home_assistant_entity all-shades)
-        state  @shade-state]
+  [shades]
+  (let [state  @shade-state]
     (doseq [shade shades]
       (let [current-level   (or (get-in state [:shades (:id shade) :level]) 0)
             already-closed? (= current-level (:close_min shade))]
@@ -273,12 +267,11 @@
 
 (defn reopen-shades-in-sunblock-set
   "Helper function to reopen shades when a sunblock event ends."
-  [all-shades]
-  (let [shades (filter :home_assistant_entity all-shades)
-        state  @shade-state]
+  [shades]
+  (let [state @shade-state]
     (doseq [shade shades]
-        (let [target (max (or (:sunblock_restore shade) (:open_max shade))
-                          (or (get-in state [:shades (:id shade) :level]) 0))]
+      (let [target (max (or (:sunblock_restore shade) (:open_max shade))
+                        (or (get-in state [:shades (:id shade) :level]) 0))]
           (future
             (try
               (set-shade-level shade target)
@@ -335,7 +328,7 @@
                     (> (- (System/currentTimeMillis) bat-update) battery-update-interval))
             (log/info "Requesting battery level updates from Home Assistant.")
             (doseq [shade (db/list-shades)]
-              (when-let [entity (:home_assistant_entity shade)]
+              (let [entity (:home_assistant_entity shade)]
                 (try
                   (let [battery (-> (fetch-shade-battery-state entity) (format-shade-battery-attributes))]
                     (swap! shade-state update-in [:shades (:id shade)] merge battery))

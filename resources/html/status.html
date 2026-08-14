@@ -19,10 +19,7 @@
 <h2 class="title is-4">Blind Controller</h2>
 
 <div class="content">
-  <p>Connected?
-    {% if connected? %}
-    <span class="tag is-success">Yes</span><br/>
-    Last Blind Position Update: {{blinds-update}}<br/>
+  <p>Last Blind Position Update: {{blinds-update}}<br/>
     Last Blind Battery Update: {{battery-update}}<br/>
     {% if lowest-battery %}
     <span {% if lowest-battery.battery-level < 10.0 %} class="has-text-danger-dark has-text-weight-bold" {% endif %}>
@@ -30,10 +27,7 @@
       ({{lowest-battery.battery-level|double-format}}%)
     </span>
     {% endif %}
-    {% else %}
-    <span class="tag is-danger">No</span>
-    {% endif %}</p>
-
+  </p>
 </div>
 
 <h2 class="title is-4">Events</h2>

@@ -9,8 +9,7 @@
    [ring.util.response :refer [redirect]]
    [shade.db.core :as db]
    [shade.home-assistant :as ha]
-   [shade.layout :as layout]
-   [shade.routes.websocket-control4 :as ws])
+   [shade.layout :as layout])
   (:import
    (java.util UUID)))
 
@@ -18,11 +17,9 @@
   (let [user-id   (get-in request [:session :identity :id])
         macros    (db/list-macros-enabled-for-user {:user user-id})]
     (response/ok (map #(select-keys % [:id :in-effect :rooms])
-                      (concat (ws/macros-in-effect macros user-id) (ha/macros-in-effect macros user-id))))))
+                      (ha/macros-in-effect macros user-id)))))
 
 (defn run-macro [{:keys [path-params session params]}]
-  (ws/run-macro (UUID/fromString (:id path-params)) (get-in session [:identity :id])
-                (when-let [room (:room params)] (UUID/fromString room)))
   (ha/run-macro (UUID/fromString (:id path-params)) (get-in session [:identity :id])
                 (when-let [room (:room params)] (UUID/fromString room)))
   (json-response {:action "Macro run"}))
@@ -49,7 +46,7 @@
         rooms    (db/list-rooms-for-user {:user user-id})
         macro    (when macro-id (db/get-macro {:id macro-id}))
         entries  (when macro (db/get-all-macro-entries {:macro macro-id}))
-        shades   (ws/shades-for-macro-editor entries)]
+        shades   (ha/shades-for-macro-editor entries)]
     (if (and macro-id (not macro))
       (layout/error-page {:status 404 :title "404 - Macro not found"})
       (layout/render request "admin-macro.html"
@@ -139,7 +136,7 @@
                              :rooms  rooms
                              :macro  {:id   macro-id
                                       :name name}
-                             :shades (merge-macro-form (ws/shades-for-macro-editor nil) entries)
+                             :shades (merge-macro-form (ha/shades-for-macro-editor nil) entries)
                              :error  (str/join " " errors)}))
       (conman/with-transaction [db/*db*]
         (if macro-id

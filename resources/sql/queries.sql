@@ -87,14 +87,13 @@ DELETE FROM rooms
 
 -- :name create-shade! :! :n
 -- :doc creates a new shade record
-INSERT INTO shades (id, name, kind, controller_id, home_assistant_entity, room, parent_id)
-VALUES (gen_random_uuid(), :name, :kind, :controller-id, :home-assistant-entity, :room, :parent-id)
+INSERT INTO shades (id, name, kind, home_assistant_entity, room)
+VALUES (gen_random_uuid(), :name, :kind, :home-assistant-entity, :room)
 
 -- :name update-shade! :! :n
 -- :doc updates an existing shade record
 UPDATE shades
-   SET name = :name, kind = :kind, controller_id = :controller-id, home_assistant_entity = :home-assistant-entity,
-       room = :room, parent_id = :parent-id
+   SET name = :name, kind = :kind, home_assistant_entity = :home-assistant-entity, room = :room
  WHERE id = :id
 
 -- :name list-shades :? :*
@@ -124,12 +123,6 @@ SELECT * FROM shades
 -- :doc retrieves multiple shade records given a list of ids
 SELECT * FROM shades
  WHERE id in (:v*:ids)
-
--- :name get-shade-by-controller-id :? :1
--- :doc retrieves a shade record given the Control4 controller id
-SELECT * FROM shades
- WHERE controller_id = :id
-   AND home_assistant_entity is null
 
 -- :name get-shade-by-home-assistant-entity :? :1
 -- :doc retrieves a shade record given the Home Assistant entity name
@@ -233,7 +226,7 @@ DELETE FROM macro_entries
 
 -- :name get-all-macro-entries :? :*
 -- :doc retrieves all macro entries for the specified macro (for admin macro editing)
-SELECT me.*, s.controller_id, s.home_assistant_entity, s.close_min, s.open_max, r.id as room, r.name as room_name
+SELECT me.*, s.home_assistant_entity, s.close_min, s.open_max, r.id as room, r.name as room_name
   FROM macro_entries me
   INNER JOIN shades s ON me.shade = s.id
   INNER JOIN rooms r ON s.room = r.id
@@ -242,7 +235,7 @@ SELECT me.*, s.controller_id, s.home_assistant_entity, s.close_min, s.open_max, 
 
 -- :name get-macro-entries :? :*
 -- :doc retrieves the entries available to the specified user for the macro with the specified id
-SELECT me.*, s.controller_id, s.home_assistant_entity, s.close_min, s.open_max, r.id as room, r.name as room_name
+SELECT me.*, s.home_assistant_entity, s.close_min, s.open_max, r.id as room, r.name as room_name
   FROM macro_entries me
   INNER JOIN shades s ON me.shade = s.id
   INNER JOIN rooms r ON s.room = r.id
@@ -264,7 +257,7 @@ UPDATE macros
 
 -- :name get-room-photo-boundaries :? :*
 -- :doc retrieves the photo boundary information for all blinds in a room, and their current sunblock state
-select spb.id, kind, controller_id, home_assistant_entity, open_max, close_min, s.id as shade_id, sunblock_state,
+select spb.id, kind, home_assistant_entity, open_max, close_min, s.id as shade_id, sunblock_state,
        top_left_x, top_left_y, top_right_x, top_right_y, bottom_left_x, bottom_left_y, bottom_right_x, bottom_right_y
   from shade_photo_boundaries spb
  inner join shades s on spb.id = s.photo_boundaries_id

@@ -7,8 +7,7 @@
    [shade.env :refer [defaults]]
    [shade.layout :refer [error-page]]
    [shade.middleware :as middleware]
-   [shade.routes.home :refer [home-routes]]
-   [shade.routes.websocket-control4 :refer [websocket-routes]]))
+   [shade.routes.home :refer [home-routes]]))
 
 (mount/defstate init-app
   :start ((or (:init defaults) (fn [])))
@@ -18,8 +17,7 @@
   :start
   (ring/ring-handler
     (ring/router
-     [(home-routes)
-      (websocket-routes)])
+     [(home-routes)])
     (ring/routes
       (ring/create-resource-handler
         {:path "/"})

@@ -7,7 +7,6 @@
    [shade.db.core :as db]
    [shade.home-assistant :as ha]
    [shade.layout :as layout]
-   [shade.routes.websocket-control4 :as ws]
    [shade.util :as util])
   (:import
    (java.util UUID)))
@@ -62,7 +61,7 @@
   adds information about the shades' current positions, motion, and
   target positions."
   [bounds]
-  (let [shade-states (merge (ws/current-shade-states) (ha/current-shade-states))]
+  (let [shade-states (ha/current-shade-states)]
     (reduce (fn [acc v]
               (let [shade-info (select-keys v [:kind :close_min :open_max :controller_id :shade_id :sunblock_state])
                     base       (or (get acc (:id v))
@@ -116,7 +115,5 @@
                         (filter identity)
                         first)]
         (when hit
-          (if (:home_assistant_entity hit)
-            (ha/move-shades {(keyword (str (:shade_id hit))) (:level hit)})
-            (ws/move-shades {(keyword (str (:shade_id hit))) (:level hit)})))
+          (ha/move-shades {(keyword (str (:shade_id hit))) (:level hit)}))
         (json-response hit)))))

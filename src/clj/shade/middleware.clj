@@ -6,7 +6,6 @@
     [ring.middleware.anti-forgery :refer [wrap-anti-forgery]]
     [shade.middleware.formats :as formats]
     [muuntaja.middleware :refer [wrap-format wrap-params]]
-    [shade.config :refer [env]]
     [shade.db.core :as db]
     [ring.logger :as logger]
     [ring.middleware.conditional :refer [if-url-starts-with]]
@@ -93,8 +92,6 @@
     :handler admin?}
    {:uri     "/set-shade-levels" ; Setting arbitrary shade levels also requires administrator privileges.
     :handler admin?}
-   {:uri     "/ws" ; Need special header to open the web socket.
-    :handler (fn [request] (= (get-in request [:headers "x-shade-token"]) (env :websocket-token)))}
    {:uri     "*" ; Everything else needs an active and valid login to access.
     :handler active?}])
 

@@ -17,8 +17,7 @@
    [shade.routes.room :as room]
    [shade.routes.status :as status]
    [shade.routes.sunblock :as sunblock]
-   [shade.routes.user :as user]
-   [shade.routes.websocket-control4 :as ws]))
+   [shade.routes.user :as user]))
 
 (defn build-macro-rooms
   "Creates a list describing the rooms which are affected by macros
@@ -75,7 +74,7 @@
 
 (defn set-shade-levels
   [{:keys [params]}]
-  (ws/move-shades params)
+  (ha/move-shades params)
   (json-response {:action "Shade levels set."}))
 
 (defn wrap-user-flags [handler]
